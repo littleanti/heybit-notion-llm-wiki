@@ -31,8 +31,8 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P2 | 공통 라이브러리 (frontmatter·slug·config·notion-client·meta) | 단위 테스트 T1·T2·T3·T15 | `완료` |
 | P3 | fixture 워크스페이스(가상 서비스 2 × 카테고리 6 × 약 30페이지) + mock Notion + `sync.js` | T4~T8 · raw/ 골든 생성 | `완료` |
 | P4 | `build-index.js` + `lint.js` | T9·T10 | `완료` |
-| P5 | `md-notion.js` + `publish.js` | T11~T14 | `대기` |
-| P6 | 스킬 (SKILL.md·references) + **ingest 실제 수행**으로 샘플 위키 합성 + query 3건 실행 | T16 · A14 실행 기록 | `대기` |
+| P5 | `md-notion.js` + `publish.js` | T11~T14 | `완료` |
+| P6 | 스킬 (SKILL.md·references) + **ingest 실제 수행**으로 샘플 위키 합성 + query 3건 실행 | T16 · A14 실행 기록 | `완료` |
 | P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `완료` |
 | P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `대기` |
 | P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `대기` |
@@ -134,7 +134,7 @@ T8(위키 루트 하위 제외 · 순환 설정 거부) 통과. `raw/.sync-repor
 **출구 조건**: T11(표·중첩 목록·인용·이스케이프·링크 해석 골든), T12(dry-run 골든), T13(`--apply` 2회 → 생성 0·교체 0),
 T14(루트 밖 id → 거부·쓰기 0) 통과. → 커밋 6
 
-**상태: `대기`**
+**상태: `완료`** — T11 7/7 · T12~T14 5/5. 게시 계획 28항목 골든, `--apply` 2회 멱등, 안전 검사 확인. 완료 판정은 P6 의 샘플 위키가 생긴 뒤에 했다 ([LOG](./LOG.md) P5).
 
 ## P6 — 스킬 + 샘플 위키 합성 + 질의 실행
 
@@ -149,9 +149,10 @@ T14(루트 밖 id → 거부·쓰기 0) 통과. → 커밋 6
 - **query 수행** — 질문 3개(카테고리 내부 · 교차 · 없는 것) 를 절차대로 실행, 답변을 LOG 에 기록 (A14)
 - `test/skill.test.js` — T16
 
-**출구 조건**: T16 통과, `lint` 결함 0, A14 의 3개 답변이 [DESIGN 7절](./DESIGN.md#7-질의-답변-형식-query) 형식으로 LOG 에 기록됨. → 커밋 7
+**출구 조건**: T16 통과, `lint` 오류 0, A14 의 3개 답변이 [DESIGN 7절](./DESIGN.md#7-질의-답변-형식-query) 형식으로 LOG 에 기록됨. → 커밋 7
 
-**상태: `대기`**
+**상태: `완료`** — T16 4/4. 스킬 절차만 준 작업자 2개가 위키 24 페이지를 합성(lint 오류 0), 심어 둔 문제 전부 표면화.
+**절차 문서의 모호점 21건**이 실행에서 드러나 wiki-schema·ingest-procedure·SKILL 을 보강했다. A14 질의 3건 기록 ([LOG](./LOG.md) P6).
 
 ## P7 — CI + `register-legacy.js`(선택)
 
