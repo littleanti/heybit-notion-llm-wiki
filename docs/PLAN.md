@@ -33,7 +33,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P4 | `build-index.js` + `lint.js` | T9·T10 | `완료` |
 | P5 | `md-notion.js` + `publish.js` | T11~T14 | `대기` |
 | P6 | 스킬 (SKILL.md·references) + **ingest 실제 수행**으로 샘플 위키 합성 + query 3건 실행 | T16 · A14 실행 기록 | `대기` |
-| P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `대기` |
+| P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `완료` |
 | P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `대기` |
 | P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `대기` |
 
@@ -162,7 +162,7 @@ T14(루트 밖 id → 거부·쓰기 0) 통과. → 커밋 6
 
 **출구 조건**: YAML 파싱 성공(매트릭스 확인). register-legacy 는 mock 에 대해 생성 요청 수 = 미등록 레거시 수. → 커밋 8
 
-**상태: `대기`**
+**상태: `완료`** — YAML 파싱(매트릭스 22·24, steps 6), register-legacy 4/4 (생성 = 미등록 수, 재실행 0, 원본 불변). Actions 실제 실행은 P9 에서 확인.
 
 ## P8 — README · 문서 마감 · Acceptance 일괄
 

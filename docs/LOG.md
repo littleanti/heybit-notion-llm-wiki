@@ -12,15 +12,27 @@
 
 ## 2026-09-09
 
-### `[chore]` P7 — CI + `register-legacy.js` · 상태: `진행중`
+### `[docs]` P8 — README · 문서 마감 · Acceptance 일괄 · 상태: `진행중`
 
-**착수 예정** (fixture 대기 중 병행 착수):
+**착수 예정** (P6 ingest 에이전트 실행 대기 중 README 초안 먼저):
+- `README.md` — 이 저장소가 답하는 세 질문(작성 규약 / 위키 구조 / 운영), 흐름도, 샘플 둘러보기, 구조, 설치(Notion 연결 절차 포함), 설정, 스킬 서브커맨드 5개, 실무자 안내, 테스트, **한계와 미확정**, 문서 인덱스, MIT
+- docs 0.1 → 1.0 갱신, A1~A17 일괄 점검
+
+---
+
+### `[chore]` P7 — CI + `register-legacy.js` · 상태: `완료`
+
+**내용** (fixture 대기 중 병행 착수):
 - `.github/workflows/ci.yml` — push/PR, Node **22·24** 매트릭스, `npm test` → `npm run lint`
 - `.claude/skills/notion-llm-wiki/scripts/register-legacy.js` — `--service <slug> --category <slug> [--apply]`: 카테고리 페이지 하위 일반 페이지 중 **아직 등록 항목이 없는 것**마다 카테고리 DB 에 `제목 + 원본` 만 채운 항목을 만든다. dry-run 기본
 - `test/helpers/mock-notion.js` — `POST /v1/pages` 에 `parent.data_source_id` + 쓰기 형태 속성 지원 추가
 - `test/register-legacy.test.js` — 생성 요청 수 = 미등록 레거시 수, 재실행 시 0
 
-**출구 조건**: YAML 파싱(매트릭스 확인), register-legacy 테스트 통과.
+**검증 (실행함)**
+- `ci.yml` 을 PyYAML 로 파싱: `on: [push, pull_request]`, matrix `node: ['22','24']`, steps 6 (checkout · setup-node · 버전/의존성 0 확인 · `npm test` · `npm run lint` · `build-index` 재실행 후 `git diff --exit-code wiki/index.md`).
+  마지막 단계는 "색인을 손으로 고치거나 갱신을 잊은 커밋" 을 CI 가 잡기 위한 것이다. **실제 Actions 실행은 P9 push 때 확인**(미확정).
+- `test/register-legacy.test.js` 4건 통과: dry-run 은 미등록 1건만 계획·쓰기 0, 이미 등록된 카테고리(상품기획)는 계획 0, `--apply` 는 `제목 + 원본 + 상태=초안` 만 채운 행 1건 생성(요약은 비움 — 사람이 채운다), **원본 페이지 객체는 바이트 단위로 불변**, 재실행 시 생성 0, 카테고리 페이지가 없으면 명확한 에러.
+- mock 에 `POST /v1/pages` + `parent.data_source_id` 경로(쓰기 형태 속성 → 읽기 형태 변환)를 추가했다.
 
 ---
 
