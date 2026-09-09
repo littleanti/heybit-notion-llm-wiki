@@ -12,6 +12,25 @@
 
 ## 2026-09-09
 
+### `[chore]` P1 — 프로젝트 스캐폴드 · 상태: `완료`
+
+**내용**: 의존성 0개 원칙과 스크립트 실행 경로를 굳혔다.
+
+- `package.json` — `private`, `engines.node >= 22`, scripts(`sync`/`index`/`lint`/`publish:wiki`/`test`). **dependencies 없음**
+- `notion-wiki.config.json` — 가상 서비스 2(루틴핏·머니노트), 카테고리 7, 속성 매핑, mock 용 페이지 id
+- `.env.example`, `.gitignore`, `.gitattributes`(`* text=auto eol=lf` — Windows 에서 골든 비교가 CRLF 로 깨지지 않게), `LICENSE`(MIT)
+- `test/smoke.test.js` — dependencies 키 없음 · Node ≥ 22 · 설정 파싱 확인 (빈 스위트로 `node --test` 가 실패하지 않게 하는 최소 테스트)
+- 디렉터리 골격 — `.claude/skills/notion-llm-wiki/{scripts/lib,references}`, `raw/`, `wiki/`, `test/{fixtures,golden,helpers}`
+
+**검증 (실행함)**: `npm test` → **tests 3 / pass 3 / fail 0** (Node v24.14.1, 약 0.1초).
+`package.json` 에 dependencies·devDependencies 키 없음을 테스트가 확인한다. `npm install` 을 실행하지 않았고
+`node_modules/` 도 없다 — 의존성 0개가 실제로 성립한다. Node 22 는 P9 의 CI 매트릭스에서 확인한다 (**미확정**).
+
+**부수 정정**: P0 커밋에 `.omc/`(세션 상태 디렉터리)가 함께 들어갔다. 푸시 전이므로 인덱스에서 제거하고
+커밋을 정정했다(`.gitignore` 에 `.omc/` 추가).
+
+---
+
 ### `[docs]` P0 — CLAUDE.md 및 문서 0.1 초안 · 상태: `완료`
 
 **내용**: 코드를 쓰기 전에 그라운드 룰과 5개 문서 초안을 작성했다. 자매 저장소

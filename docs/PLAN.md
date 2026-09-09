@@ -27,7 +27,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | Phase | 내용 | 검증 방식 | 상태 |
 |---|---|---|---|
 | P0 | CLAUDE.md + 문서 0.1 초안 (PRD·TRD·DESIGN·PLAN·LOG) | 파일 존재 · 상호 링크 | `완료` |
-| P1 | 스캐폴드 (package.json·설정·스킬 디렉터리 골격·gitignore·LICENSE) | `npm test` 가 빈 스위트로 성공, Node 버전 확인 | `대기` |
+| P1 | 스캐폴드 (package.json·설정·스킬 디렉터리 골격·gitignore·LICENSE) | `npm test` 가 빈 스위트로 성공, Node 버전 확인 | `완료` |
 | P2 | 공통 라이브러리 (frontmatter·slug·config·notion-client·meta) | 단위 테스트 T1·T2·T3·T15 | `대기` |
 | P3 | fixture 워크스페이스(가상 서비스 2 × 카테고리 6 × 약 30페이지) + mock Notion + `sync.js` | T4~T8 · raw/ 골든 생성 | `대기` |
 | P4 | `build-index.js` + `lint.js` | T9·T10 | `대기` |
@@ -69,9 +69,10 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 - `LICENSE` — MIT, Wondeuk Yoon, 2026
 - 디렉터리 — `.claude/skills/notion-llm-wiki/{scripts/lib,references}`, `raw/`, `wiki/`, `test/{fixtures,golden,helpers}`
 
-**출구 조건**: `node --version` ≥ 22, `npm test` 가 (테스트 0개 상태로) 정상 종료, `package.json` 에 dependencies 키가 없다. → 커밋 2
+**출구 조건**: `node --version` ≥ 22, `npm test` 가 정상 종료, `package.json` 에 dependencies 키가 없다. → 커밋 2
 
-**상태: `대기`**
+**상태: `완료`** — Node v24.14.1, `npm test` 3/3 (스모크 테스트 3개 — 빈 스위트는 `node --test` 가 실패하므로 최소 테스트를 두었다), dependencies 없음.
+`.gitattributes`(`eol=lf`) 를 추가했다 — Windows 환경에서 골든 비교가 CRLF 로 깨지는 리스크 대응.
 
 ## P2 — 공통 라이브러리
 

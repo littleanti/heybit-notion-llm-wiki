@@ -1,0 +1,4 @@
+# 골든 파일 비교가 OS 별 개행 차이로 깨지지 않게 저장소 안에서는 항상 LF 로 둔다.
+* text=auto eol=lf
+*.png binary
+*.jpg binary

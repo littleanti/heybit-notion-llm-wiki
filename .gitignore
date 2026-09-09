@@ -1,0 +1,24 @@
+# 비밀값
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+
+# 임시
+tmp/
+*.tmp
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# oh-my-claudecode 세션 상태 (운영 아티팩트, 프로젝트 산출물 아님)
+.omc/
+
+# 참고: raw/.sync-state.json 과 wiki/.publish-state.json 은 의도적으로 커밋한다 (docs/TRD.md 4절)

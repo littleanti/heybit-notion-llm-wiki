@@ -1,0 +1,18 @@
+{
+  "name": "heybit-notion-llm-wiki",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Notion 실무 문서를 Claude Code 가 LLM wiki 로 합성하고 다시 Notion 에 게시하는 스킬 + 운영 규약 (샘플)",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "sync": "node .claude/skills/notion-llm-wiki/scripts/sync.js",
+    "index": "node .claude/skills/notion-llm-wiki/scripts/build-index.js",
+    "lint": "node .claude/skills/notion-llm-wiki/scripts/lint.js",
+    "publish:wiki": "node .claude/skills/notion-llm-wiki/scripts/publish.js",
+    "test": "node --test \"test/*.test.js\""
+  }
+}
