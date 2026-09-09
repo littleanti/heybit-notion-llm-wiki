@@ -240,6 +240,8 @@ gitignore 에 넣어도 되고 커밋해도 된다 — 커밋하면 팀원 간 �
       - 위키 루트 하위 / 어느 루트에도 닿지 않음 → 범위 밖
    d. 범위 안 data source 각각 → query(전체 페이지네이션) → 행(page) 목록 (권위 있는 목록)
    e. 후보 = (a 중 범위 안 페이지) ∪ (d 의 행). id 로 중복 제거.
+      **카테고리 페이지**(서비스 루트 직속 + 제목이 설정의 카테고리 이름과 일치)는 컨테이너로 보고 후보에서 뺀다
+      (구현 중 발견: 빼지 않으면 "CS", "법무" 같은 빈 페이지가 `misc` 로 미러된다).
 2. meta 추출 (lib/meta.js)
    - 카테고리: 속성 `카테고리` > 조상 중 카테고리 이름과 일치하는 페이지/DB 제목 > fallback
    - 서비스: 조상 루트
@@ -332,19 +334,23 @@ Notion 트리와 파일의 대응:
 
 ### 6.5 `lint.js` — 구조 lint
 
-| 코드 | 검사 | 대상 |
-|---|---|---|
-| L1 `meta-missing` | 필수 meta(제목·문서유형·상태·요약·담당자) 누락. 등록 항목 없는 레거시 페이지는 `meta-missing` + 안내 | raw |
-| L2 `meta-invalid` | 허용값 밖 (문서유형·상태·작성주체·비밀등급), 날짜 형식 | raw |
-| L3 `link-broken` | 상대 링크 대상 파일 없음 | raw, wiki |
-| L4 `orphan-wiki` | wiki 페이지가 index 에 없음 / index 가 가리키는 파일 없음 | wiki |
-| L5 `source-missing` | wiki `sources` 가 가리키는 raw 없음, 또는 H2 섹션에 출처 링크 0개 | wiki |
-| L6 `stale` | raw `review_by` 경과, 또는 wiki `sources` 의 raw 가 wiki `updated` 이후 바뀜 | raw, wiki |
-| L7 `frontmatter-invalid` | YAML 부분집합 파싱 실패, 필수 키 없음 | 둘 다 |
-| L8 `too-large` | wiki 페이지 200KB 초과, index 2,000줄 초과 (ADR-002 임계) | wiki |
+| 코드 | 등급 | 검사 | 대상 |
+|---|---|---|---|
+| L1 `meta-missing` | 경고 | 필수 meta(제목·문서유형·상태·요약·담당자) 누락. 등록 항목 없는 레거시 페이지는 `meta-missing` + 안내 | raw |
+| L2 `meta-invalid` | 오류 | 허용값 밖 (문서유형·상태·작성주체·비밀등급), 날짜 형식, 설정에 없는 서비스/카테고리, **미러에 남은 `민감` 페이지**(있을 수 없는 상태) | raw |
+| L3 `link-broken` | 오류 | 상대 링크 대상 파일 없음 | raw, wiki |
+| L4 `orphan-wiki` | 오류 | wiki 페이지가 index 에 없음 / index 가 가리키는 파일 없음 | wiki |
+| L5 `source-missing` | 오류 | wiki `sources` 가 비었거나 가리키는 raw 없음, 또는 H2 섹션에 링크(raw·wiki `.md` 또는 notion.so URL) 0개 | wiki |
+| L6 `stale` | 경고 | raw `review_by` 경과, 또는 wiki `sources` 의 raw 가 wiki `updated` 이후 바뀜 | raw, wiki |
+| L7 `frontmatter-invalid` | 오류 | YAML 부분집합 파싱 실패, 필수 키 없음, wiki `type`·`updated`·`sources` 형식 | 둘 다 |
+| L8 `too-large` | 오류 | wiki 페이지 200KB 초과, index 2,000줄 초과 (ADR-002 임계) | wiki |
 
-출력은 `<코드> <경로>: <메시지>` 한 줄씩 + 요약. 결함이 하나라도 있으면 종료 코드 1.
-`--json` 으로 기계가 읽을 수 있게도 낸다. **고치지 않는다.**
+**경고와 오류를 나누는 이유**: 샘플 raw 에는 meta 없는 레거시 페이지와 검토기한 경과 페이지가 **의도적으로**
+들어 있다. 이것들은 Notion 에서 사람이 처리해야 할 운영 신호이고 위키의 충돌·미확정 페이지가 보여 주는
+대상이지, 저장소가 깨진 것이 아니다. CI 가 그것 때문에 실패하면 lint 는 곧 무시된다.
+
+출력은 `E|W <코드> <경로>: <메시지>` 한 줄씩 + 요약. **오류가 하나라도 있으면 종료 코드 1**, 경고만 있으면 0
+(`--strict` 면 경고도 1). `--json` 으로 기계가 읽을 수 있게도 낸다. **고치지 않는다.**
 
 ### 6.6 `lib/notion-client.js`
 

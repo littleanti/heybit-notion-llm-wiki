@@ -1,0 +1,47 @@
+{
+  "description": "가상 heybit Notion 워크스페이스의 구조. 실무 페이지는 pages-*.json 에 있다. 모든 id·이름·내용은 가상이다.",
+  "wikiRootPageId": "99999999-9999-4999-8999-000000000001",
+  "categories": [
+    { "code": "01", "slug": "product-planning", "name": "상품기획" },
+    { "code": "02", "slug": "product-description", "name": "상품설명" },
+    { "code": "03", "slug": "product-dev", "name": "상품개발" },
+    { "code": "04", "slug": "cs", "name": "CS" },
+    { "code": "05", "slug": "legal", "name": "법무" },
+    { "code": "06", "slug": "marketing", "name": "마케팅" }
+  ],
+  "services": [
+    { "code": "0001", "slug": "routinefit", "name": "루틴핏", "rootPageId": "11111111-1111-4111-8111-000000000001", "pagesFile": "pages-routinefit.json" },
+    { "code": "0002", "slug": "moneynote", "name": "머니노트", "rootPageId": "11111111-1111-4111-8111-000000000002", "pagesFile": "pages-moneynote.json" }
+  ],
+  "structuralPages": [
+    { "id": "11111111-1111-4111-8111-000000000001", "parent": { "type": "workspace", "workspace": true }, "title": "루틴핏", "created_time": "2026-01-10T00:00:00.000Z", "last_edited_time": "2026-06-15T00:00:00.000Z", "markdown": "## 루틴핏\n서비스 상위 페이지. 카테고리 페이지 6개가 아래에 있다." },
+    { "id": "11111111-1111-4111-8111-000000000002", "parent": { "type": "workspace", "workspace": true }, "title": "머니노트", "created_time": "2026-01-10T00:00:00.000Z", "last_edited_time": "2026-05-01T00:00:00.000Z", "markdown": "## 머니노트\n서비스 상위 페이지." },
+    { "id": "99999999-9999-4999-8999-000000000001", "parent": { "type": "workspace", "workspace": true }, "title": "LLM Wiki", "created_time": "2026-09-01T00:00:00.000Z", "last_edited_time": "2026-09-01T00:00:00.000Z", "markdown": "## LLM Wiki\n위키 루트. 아래 페이지는 스킬이 생성한다." },
+    { "id": "99999999-9999-4999-8999-000000000002", "parent": { "type": "page_id", "page_id": "99999999-9999-4999-8999-000000000001" }, "title": "색인", "created_time": "2026-09-02T00:00:00.000Z", "last_edited_time": "2026-09-02T00:00:00.000Z", "markdown": "# 색인\n(이전 게시 결과 — raw 로 수집되면 안 된다)" }
+  ],
+  "propertySchema": {
+    "제목": "title",
+    "문서유형": "select",
+    "상태": "select",
+    "작성주체": "select",
+    "담당자": "people",
+    "요약": "rich_text",
+    "키워드": "multi_select",
+    "태그": "multi_select",
+    "검토기한": "date",
+    "최종확인일": "date",
+    "비밀등급": "select",
+    "위키제외": "checkbox",
+    "원본": "url",
+    "관련 페이지": "relation"
+  },
+  "idScheme": {
+    "categoryPage": "22222222-{S}-4000-8000-0000000000{CC}",
+    "database": "33333333-{S}-4000-8000-0000000000{CC}",
+    "dataSource": "44444444-{S}-4000-8000-0000000000{CC}",
+    "dbRow": "55555555-{S}-40{CC}-8000-0000000000{NN}",
+    "legacyPage": "66666666-{S}-40{CC}-8000-0000000000{NN}",
+    "rootChildPage": "77777777-{S}-4000-8000-0000000000{NN}",
+    "createdByPublish": "88888888-0000-4000-8000-0000000000{NN}"
+  }
+}

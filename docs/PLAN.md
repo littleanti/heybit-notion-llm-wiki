@@ -29,8 +29,8 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P0 | CLAUDE.md + 문서 0.1 초안 (PRD·TRD·DESIGN·PLAN·LOG) | 파일 존재 · 상호 링크 | `완료` |
 | P1 | 스캐폴드 (package.json·설정·스킬 디렉터리 골격·gitignore·LICENSE) | `npm test` 가 빈 스위트로 성공, Node 버전 확인 | `완료` |
 | P2 | 공통 라이브러리 (frontmatter·slug·config·notion-client·meta) | 단위 테스트 T1·T2·T3·T15 | `완료` |
-| P3 | fixture 워크스페이스(가상 서비스 2 × 카테고리 6 × 약 30페이지) + mock Notion + `sync.js` | T4~T8 · raw/ 골든 생성 | `대기` |
-| P4 | `build-index.js` + `lint.js` | T9·T10 | `대기` |
+| P3 | fixture 워크스페이스(가상 서비스 2 × 카테고리 6 × 약 30페이지) + mock Notion + `sync.js` | T4~T8 · raw/ 골든 생성 | `완료` |
+| P4 | `build-index.js` + `lint.js` | T9·T10 | `완료` |
 | P5 | `md-notion.js` + `publish.js` | T11~T14 | `대기` |
 | P6 | 스킬 (SKILL.md·references) + **ingest 실제 수행**으로 샘플 위키 합성 + query 3건 실행 | T16 · A14 실행 기록 | `대기` |
 | P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `대기` |
@@ -109,7 +109,8 @@ T15(429 → `Retry-After` 대기 후 재시도, 페이지네이션 이어 붙임
 **출구 조건**: T4(골든 일치), T5(2회차 호출 0 · 1건 변경만 재수집), T6(민감·제외·휴지통), T7(등록 항목 → 원본 본문·단독 원본 제거),
 T8(위키 루트 하위 제외 · 순환 설정 거부) 통과. `raw/.sync-report.md` 가 [DESIGN 9절](./DESIGN.md#9-리포트메시지-문구-정본) 형식. → 커밋 4
 
-**상태: `대기`**
+**상태: `완료`** — T4~T8 7/7. fixture 38 페이지 → raw 33 파일, 호출 59회, 2회차 본문 조회 0.
+**실측으로 고친 것 2건**: 카테고리 페이지가 `misc` 로 미러되던 것, 조상 캐시 분기에서 카테고리 제목이 빠져 레거시가 `misc` 로 가던 것 ([LOG](./LOG.md) P3).
 
 ## P4 — `build-index.js` + `lint.js`
 
@@ -118,9 +119,10 @@ T8(위키 루트 하위 제외 · 순환 설정 거부) 통과. `raw/.sync-repor
 - `scripts/lint.js` — L1~L8 ([TRD 6.5](./TRD.md#65-lintjs--구조-lint)), `--json`
 - `test/fixtures/lint/` — 결함 7종을 하나씩 심은 최소 워크스페이스
 
-**출구 조건**: T9(골든 · 2회 실행 바이트 일치), T10(결함 7종 각각 정확히 그 코드만 · 무결함 0) 통과. → 커밋 5
+**출구 조건**: T9(골든 · 2회 실행 바이트 일치), T10(결함 종류별로 정확히 그 코드만 · 샘플은 오류 0) 통과. → 커밋 5
 
-**상태: `대기`**
+**상태: `완료`** — T9 3/3 · T10 7/7. 샘플 저장소 lint = 오류 0 · 경고 4(의도된 것).
+**설계 조정**: lint 를 경고/오류 두 등급으로 나눔 (PRD FR5.3·A9, TRD 6.5 갱신 — [LOG](./LOG.md) P4).
 
 ## P5 — `md-notion.js` + `publish.js`
 

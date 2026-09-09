@@ -12,6 +12,94 @@
 
 ## 2026-09-09
 
+### `[chore]` P7 — CI + `register-legacy.js` · 상태: `진행중`
+
+**착수 예정** (fixture 대기 중 병행 착수):
+- `.github/workflows/ci.yml` — push/PR, Node **22·24** 매트릭스, `npm test` → `npm run lint`
+- `.claude/skills/notion-llm-wiki/scripts/register-legacy.js` — `--service <slug> --category <slug> [--apply]`: 카테고리 페이지 하위 일반 페이지 중 **아직 등록 항목이 없는 것**마다 카테고리 DB 에 `제목 + 원본` 만 채운 항목을 만든다. dry-run 기본
+- `test/helpers/mock-notion.js` — `POST /v1/pages` 에 `parent.data_source_id` + 쓰기 형태 속성 지원 추가
+- `test/register-legacy.test.js` — 생성 요청 수 = 미등록 레거시 수, 재실행 시 0
+
+**출구 조건**: YAML 파싱(매트릭스 확인), register-legacy 테스트 통과.
+
+---
+
+### `[feat]` P6 — 스킬(SKILL.md·references) + 샘플 위키 합성 + 질의 실행 · 상태: `진행중`
+
+**착수 예정** (스킬 문서는 fixture 대기 중 먼저 작성, ingest·query 실행은 raw/ 골든 생성 후):
+- `.claude/skills/notion-llm-wiki/SKILL.md` — frontmatter(`name`·`description`·`argument-hint`·`allowed-tools`), `$0` 분기, 서브커맨드 5개 절차 요약
+- `references/wiki-schema.md` · `ingest-procedure.md` · `query-procedure.md` · `lint-semantic.md` · `notion-authoring.md`
+- `test/skill.test.js` — T16 (frontmatter 필드 · 서브커맨드 5개가 references 를 가리킴 · 500줄 이내 · description 길이)
+- **ingest 수행** → `wiki/` (개요 2 · 다이제스트 12 · 토픽 · 충돌 2 · log) → `build-index` → `lint` 오류 0
+- **query 수행** → 질문 3개 답변을 이 LOG 에 기록 (A14)
+
+**출구 조건**: T16 통과, lint 오류 0, A14 기록.
+
+---
+
+### `[feat]` P5 — `md-notion.js` + `publish.js` · 상태: `진행중`
+
+**착수 예정** (P3 fixture 본문 대기 중 병행 착수 — 이 둘도 fixture 내용에 의존하지 않는다):
+
+- `.claude/skills/notion-llm-wiki/scripts/lib/md-notion.js` — 표준 MD → enhanced MD 정규화 ([TRD 6.3](./TRD.md#63-libmd-notionjs--표준-md--enhanced-md)): 파이프 표 → `<table>`, 스페이스 들여쓰기 → 탭, 연속 인용 → `<br>`, h5/h6 → h4, 텍스트 특수문자 이스케이프(코드·링크 URL·태그 제외), HTML 주석 제거, 상대 링크 해석 콜백, 마커 콜아웃 헬퍼
+- `.claude/skills/notion-llm-wiki/scripts/publish.js` — [TRD 6.2](./TRD.md#62-publishjs--wiki--notion): dry-run 기본 · `--apply` · 2단계(생성 → 본문 교체) · 해시 기반 멱등 · 안전 검사(부모 확인) · 고아 게시 페이지 보고(삭제 안 함) · `--json` 계획 출력
+- `test/md-notion.test.js`(T11), `test/publish.test.js`(T12~T14)
+
+**출구 조건**: T11(정규화 골든) · T12(dry-run 계획 골든) · T13(`--apply` 2회 → 생성 0·교체 0) · T14(루트 밖 id → 거부·쓰기 0).
+
+---
+
+### `[feat]` P4 — `build-index.js` + `lint.js` · 상태: `완료`
+
+**내용** (P3 의 fixture 본문 작성을 기다리는 동안 착수 — 두 스크립트는 fixture 내용에 의존하지 않는다):
+
+- `.claude/skills/notion-llm-wiki/scripts/lib/pages.js` — raw/wiki 페이지 목록·frontmatter 로드·게시 제목 규칙 (build-index·lint·publish 가 공유)
+- `.claude/skills/notion-llm-wiki/scripts/build-index.js` — [TRD 6.4](./TRD.md#64-build-indexjs) · [DESIGN 5.1](./DESIGN.md#51-wikiindexmd--스크립트가-생성-손으로-고치지-않는다)
+- `.claude/skills/notion-llm-wiki/scripts/lint.js` — L1~L8, `--json`, `--strict`
+- `test/index.test.js`(T9), `test/lint.test.js`(T10)
+
+**설계 조정 (구현 중 발견, 상위 문서 갱신 예정)**: PRD A9 는 "결함 없는 샘플 위키에서 lint 0" 을 요구하지만,
+샘플 raw 에는 **의도적으로** meta 없는 레거시 페이지와 검토기한 경과 페이지가 들어 있다 — 이것들은 위키의
+충돌·미확정 페이지가 사람에게 보여 줘야 할 **운영 신호**이지 저장소의 결함이 아니다. 따라서 lint 를
+**경고(warning)** 와 **오류(error)** 로 나눈다: L1 `meta-missing`·L6 `stale` 은 경고(종료 코드 0, `--strict` 면 1),
+L2·L3·L4·L5·L7·L8 은 오류(종료 코드 1). A9 의 "0" 은 "오류 0" 으로 정정한다. → PRD FR5.3·A9, TRD 6.5 갱신 완료.
+
+**검증 (실행함)**: T9 3건 · T10 7건 통과.
+- T9: 샘플 raw 33건으로 만든 색인이 `test/golden/index.md` 와 바이트 일치, 2회 생성 동일. 한 줄 형식(`⚠ meta 없음`, `(초안)`, `⏰`)과 서비스→카테고리→제목 정렬 확인. 민감·위키제외 페이지가 색인에 없음.
+- T10: 샘플 저장소 lint = **오류 0, 경고 4** (meta-missing 3 — 미등록 레거시 2 + 루트 직속 안내 페이지 1, stale 1 — 검토기한 2026-06-30 경과). 결함을 하나씩 심은 사본에서 정확히 그 코드만 증가함을 확인(L1·L2×2·L3·L6·L7×2), 위키 결함 4종(L5·L4·L8·stale)은 임시 위키로 확인.
+- `npm run lint` 실제 출력: `lint: 경고 4 (meta-missing 3, stale 1) → 종료 코드 0`.
+
+---
+
+### `[feat]` P3 — fixture 워크스페이스 + mock Notion + `sync.js` · 상태: `완료`
+
+**내용**: 가상 데이터로 heybit 의 Notion 구조를 재현하고, 동기화가 그 구조를 `raw/` 로 정확히 옮기는지 골든으로 고정했다.
+fixture 본문(루틴핏 23건 · 머니노트 15건 = 38건)은 별도 작성 에이전트 2개가 병렬로 썼고, 사양 대비 이탈은 기록만 남길 수준이었다
+(짧은 본문 3건은 사양이 요구한 것, 회고가 하루 뒤 만들어진 FAQ 를 멘션하는 연대 어긋남 1건, 머니노트 `마이데이터 검토` 의 비밀등급을 `민감`→`내부` 로 조정해 미러에 포함).
+
+- `test/fixtures/workspace.json` — 구조(서비스 루트 2 · 카테고리 페이지 12 · 카테고리 DB/data source 12 · 위키 루트 + 게시된 위키 페이지 1 · 루트 직속 페이지 1)
+- `test/fixtures/pages-routinefit.json`, `test/fixtures/pages-moneynote.json` — 실무 페이지 약 30건 (압축 형식: `props` + `markdown`). **의도적으로 심는 것**: 환불 기한 충돌(법무 14일 vs CS 7일), 근거 정책 없는 FAQ, 검토기한 경과, 폐기 페이지 참조, AI 초안, 민감 1, 위키제외 1, 휴지통 1, 미등록 레거시 2, 등록 레거시 2, `truncated` 1
+- `test/helpers/mock-notion.js` — fixture 를 Notion API 형태로 서빙하는 주입식 `fetch` (search · data source query · pages · databases · markdown · 생성/교체 기록 · N번째 요청 429 주입)
+- `.claude/skills/notion-llm-wiki/scripts/sync.js` — [TRD 6.1](./TRD.md#61-syncjs--notion--raw) 알고리즘. `runSync()` 모듈 + CLI
+- `.claude/skills/notion-llm-wiki/scripts/lib/report.js` — 동기화 리포트
+- `raw/` — mock 에 대해 실행한 결과를 그대로 커밋 (= 골든)
+- `test/sync.test.js` — T4~T8
+
+**검증 (실행함)**: T4~T8 7건 통과 (`node --test test/sync.test.js`).
+- `raw/` = **35 파일**(33 페이지 + 상태·리포트). 발견 53 페이지 → 범위 밖 1(위키 루트 아래 "색인") · 컨테이너 12(카테고리 페이지) · 제외 2(민감 1, 위키제외 1) · 휴지통 1 · 등록 항목이 대표한 원본 2. 호출 **59회** (search 2 + DB 12 + data source query 12 + markdown 33).
+- 2회차: 본문 조회 **0건**, 변경 0. 1건의 `last_edited_time` 만 바꾸면 그 1건만 다시 받음.
+- 등록 항목 → `meta_source: registry`, `source_url` = 원본, `created_time` = 원본의 것, 본문 = 원본 본문. 원본 단독 파일 없음. 미등록 레거시는 `meta_source: inferred` + 조상 제목으로 카테고리 추론(CS).
+- 멘션 뒤에 미러 상대 링크가 덧붙고(`../legal/구독-환불-규정-555555.md`), related 는 제목·URL 로 해석, `truncated` 페이지는 frontmatter·본문 주석에 기록. people 의 이메일은 결과 어디에도 없음.
+- 위키 루트가 서비스 하위인 워크스페이스 → `자기 출력을 다시 수집` 메시지로 거부. 원본 조회 실패는 그 항목만 실패로 남기고 나머지 계속.
+
+**실행하면서 고친 것 2건 (실측이 드러낸 결함)**
+1. **카테고리 페이지 12개가 `misc` 로 미러됐다.** 1차 구현은 "서비스 루트에 닿는 모든 페이지" 를 후보로 봤고, 카테고리 페이지("CS", "법무")도 루트 직속 페이지라 통과했다. 첫 골든 생성에서 45 파일이 나와 발견. → 서비스 루트 직속 + 제목이 카테고리 이름인 페이지는 **컨테이너**로 분류해 제외 (TRD 6.1 갱신, 리포트에 `컨테이너 N` 집계).
+2. **미등록 레거시 페이지가 `cs` 가 아니라 `misc` 로 갔다.** 조상 해석 캐시를 쓰는 분기에서 **캐시된 노드 자신을 체인에 넣지 않아** 카테고리 페이지 제목이 체인에서 빠졌다. 1번을 고친 뒤에야 드러났다(그 전엔 카테고리 페이지가 후보로 먼저 해석돼 캐시가 없었다). → 노드를 먼저 체인에 넣고 캐시를 합치도록 수정. 삭제 사유도 `getPage` 로 실제 상태(휴지통/이동/삭제)를 확인해 정확히 적도록 바꿨다.
+
+**골든 생성기**: `node test/helpers/generate-golden.js` 가 `raw/` 전체 · `test/golden/index.md` · `test/golden/publish-plan.json` 을 고정 시각으로 다시 만든다. fixture 나 wiki 를 바꾸면 이걸 돌리고 diff 를 검토한 뒤 커밋한다.
+
+---
+
 ### `[feat]` P2 — 공통 라이브러리 · 상태: `완료`
 
 **내용**: 나머지 스크립트가 공유하는 부품. frontmatter 는 raw·wiki·index 전부가 의존하므로 라운드트립을 먼저 굳힌다.
