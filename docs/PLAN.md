@@ -28,7 +28,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 |---|---|---|---|
 | P0 | CLAUDE.md + 문서 0.1 초안 (PRD·TRD·DESIGN·PLAN·LOG) | 파일 존재 · 상호 링크 | `완료` |
 | P1 | 스캐폴드 (package.json·설정·스킬 디렉터리 골격·gitignore·LICENSE) | `npm test` 가 빈 스위트로 성공, Node 버전 확인 | `완료` |
-| P2 | 공통 라이브러리 (frontmatter·slug·config·notion-client·meta) | 단위 테스트 T1·T2·T3·T15 | `대기` |
+| P2 | 공통 라이브러리 (frontmatter·slug·config·notion-client·meta) | 단위 테스트 T1·T2·T3·T15 | `완료` |
 | P3 | fixture 워크스페이스(가상 서비스 2 × 카테고리 6 × 약 30페이지) + mock Notion + `sync.js` | T4~T8 · raw/ 골든 생성 | `대기` |
 | P4 | `build-index.js` + `lint.js` | T9·T10 | `대기` |
 | P5 | `md-notion.js` + `publish.js` | T11~T14 | `대기` |
@@ -89,7 +89,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 **출구 조건**: T1(라운드트립 — 한국어·콜론·따옴표·빈 배열·null), T2(slug 금지 문자·길이·NFC), T3(속성 10종·빈 값),
 T15(429 → `Retry-After` 대기 후 재시도, 페이지네이션 이어 붙임, 호출 수 집계) 통과. → 커밋 3
 
-**상태: `대기`**
+**상태: `완료`** — `npm test` 27/27. 상세는 [LOG](./LOG.md) P2.
 
 ## P3 — fixture 워크스페이스 + mock Notion + `sync.js`
 

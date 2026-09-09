@@ -12,6 +12,29 @@
 
 ## 2026-09-09
 
+### `[feat]` P2 — 공통 라이브러리 · 상태: `완료`
+
+**내용**: 나머지 스크립트가 공유하는 부품. frontmatter 는 raw·wiki·index 전부가 의존하므로 라운드트립을 먼저 굳힌다.
+
+- `.claude/skills/notion-llm-wiki/scripts/lib/frontmatter.js` — YAML 부분집합 `stringify`/`parse`/`split`/`join`
+- `.claude/skills/notion-llm-wiki/scripts/lib/slug.js` — [DESIGN 8절](./DESIGN.md#8-이름-규칙)
+- `.claude/skills/notion-llm-wiki/scripts/lib/config.js` — 설정·`.env` 로드, [TRD 5.2](./TRD.md#52-설정-검증-기동-시) 검증(정적으로 가능한 것), 토큰 요구 메시지
+- `.claude/skills/notion-llm-wiki/scripts/lib/notion-client.js` — `createClient` (토큰 버킷 · 429/529 `Retry-After` · 페이지네이션 · 호출 통계 · 헤더 미노출)
+- `.claude/skills/notion-llm-wiki/scripts/lib/meta.js` — Notion `properties` → 내부 meta, raw frontmatter 조립(키 순서 고정), URL → page id
+- `test/frontmatter.test.js`, `test/slug.test.js`, `test/meta.test.js`, `test/notion-client.test.js`, `test/config.test.js`
+
+**검증 (실행함)**: `npm test` → **tests 27 / pass 27 / fail 0** (스모크 3 + config 4 + T1 5 + T2 4 + T3 5 + T15 6).
+
+확인한 것 중 기록할 가치가 있는 것:
+- **frontmatter 라운드트립**은 한국어·콜론(`: `)·`#`·따옴표·백슬래시·개행·`yes`/`007` 같은 "숫자·예약어로 오해될 문자열"·빈 배열·`null`·평면 객체 배열(related)을 전부 보존한다. 부분집합 밖(중첩 배열, 배열·객체 혼합 블록, 들여쓴 최상위 키)은 **명시적으로 거부**한다 — 조용히 잘못 읽는 것이 가장 나쁜 실패 모드라서다.
+- **slug 의 NFC 정규화**를 분해형(NFD) 입력으로 실제 확인했다 — macOS 에서 만든 파일명이 Windows/Linux 와 달라지는 문제의 대응.
+- **client 의 rps 제한**은 주입한 시계로 요청 간 대기가 300~340ms 임을 확인했고, **429 는 `Retry-After: 2` 를 2,000ms 대기로 존중**, 4xx 는 재시도 없음, 재시도 상한(6) 초과 시 마지막 에러. 에러 메시지에 토큰 문자열이 들어가지 않음을 검사한다.
+- **meta 의 people 속성**은 이름만 남기고 이메일이 결과 JSON 어디에도 없음을 확인 (DR5).
+
+**부수 수정**: `slug.js` 의 제어문자 제거 정규식에 리터럴 제어문자가 들어가 있어 `\u0000-\u001f` 표기로 바꿨다 (동작 동일, 소스 가독성 문제).
+
+---
+
 ### `[chore]` P1 — 프로젝트 스캐폴드 · 상태: `완료`
 
 **내용**: 의존성 0개 원칙과 스크립트 실행 경로를 굳혔다.
