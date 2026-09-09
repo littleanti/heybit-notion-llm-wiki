@@ -1,6 +1,6 @@
 # PLAN — heybit-notion-llm-wiki
 
-- 문서 버전: 1.0 (2026-09-09) — P0~P8 완료, P9(GitHub 생성·푸시) 진행
+- 문서 버전: 1.0 (2026-09-09) — P0~P9 완료
 - 문서 역할: **언제 · 어떤 순서로** 만드는가
 - 관련 문서: [PRD](./PRD.md) · [TRD](./TRD.md) · [DESIGN](./DESIGN.md) · [LOG](./LOG.md)
 
@@ -35,7 +35,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P6 | 스킬 (SKILL.md·references) + **ingest 실제 수행**으로 샘플 위키 합성 + query 3건 실행 | T16 · A14 실행 기록 | `완료` |
 | P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `완료` |
 | P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `완료` |
-| P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `대기` |
+| P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `완료` |
 
 ---
 
@@ -185,8 +185,9 @@ push 전 확인: `.env` 미포함, `raw/`·fixture 에 실제 정보 없음(가�
 
 **출구 조건**: Actions 가 Node 22·24 에서 통과. 통과 결과를 LOG 에 기록. → 커밋 10(필요 시)
 
-**상태: `진행중`** — 저장소 생성·최초 push 완료(2026-09-09). 첫 CI 실행에서 `npm test`·`lint` 는 Node 22·24 모두 통과했으나
-"색인 최신 확인" 단계가 실패 — 색인 헤더의 생성 시각이 실행마다 달라지는 결함. 색인을 입력만으로 결정되게 고쳐 재푸시, CI 재확인 중 ([LOG](./LOG.md) P9).
+**상태: `완료`** — 저장소 생성·최초 push(2026-09-09). 첫 CI 실행에서 `npm test`·`lint` 는 Node 22·24 모두 통과했으나
+"색인 최신 확인" 단계가 실패 — 색인 헤더의 생성 시각이 실행마다 달라지는 결함. 색인을 입력만으로 결정되게 고쳐 재푸시 →
+**CI run 34367811565 Node 22·24 전 단계 통과.** Node 22 실동작·A16 재현성이 실측으로 해소됐다 ([LOG](./LOG.md) P9).
 
 ---
 
