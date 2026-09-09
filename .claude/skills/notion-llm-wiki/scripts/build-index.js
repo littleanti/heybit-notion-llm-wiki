@@ -34,8 +34,10 @@ function wikiLine(cfg, p, href) {
   return `- [${displayTitle(cfg, d)}](${href}) — ${d.summary || '(요약 없음)'}${kw}`;
 }
 
+// 색인은 입력(raw/wiki frontmatter + 동기화 상태)만으로 결정된다. 벽시계를 쓰지 않는다 —
+// 생성 시각은 git 이 기록하고, 검토기한 경과(⏰)의 기준일은 마지막 동기화 날짜다.
 function buildIndexText({ cfg, rootDir, nowIso, syncedAt }) {
-  const today = nowIso.slice(0, 10);
+  const today = (syncedAt || nowIso).slice(0, 10);
   const raw = listRawPages(cfg, rootDir).filter((p) => p.data && !p.error);
   const wiki = listWikiPages(cfg, rootDir).filter((p) => p.data && !p.error);
   const wikiDir = cfg.paths.wiki;
@@ -44,8 +46,8 @@ function buildIndexText({ cfg, rootDir, nowIso, syncedAt }) {
   const out = [];
   out.push('# 색인');
   out.push('');
-  out.push(`- 생성: ${nowIso} · 동기화: ${syncedAt || '—'} · raw ${raw.length} · wiki ${wiki.length}`);
-  out.push('- 읽는 법: 위키 → 원본 순서로 찾는다. `⚠` 는 meta 없음, `(초안)` 은 확정 아님, `⏰` 는 검토기한 경과');
+  out.push(`- 동기화: ${syncedAt || '—'} · raw ${raw.length} · wiki ${wiki.length}`);
+  out.push(`- 읽는 법: 위키 → 원본 순서로 찾는다. \`⚠\` 는 meta 없음, \`(초안)\` 은 확정 아님, \`⏰\` 는 검토기한 경과(${today} 기준)`);
   out.push('');
   out.push('## 위키');
   out.push('');

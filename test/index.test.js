@@ -22,7 +22,11 @@ test('T9 index: 한 줄 형식 — 상태 표기·meta 없음·검토기한 경�
   const { text, counts } = buildIndex({ cfg, rootDir: REPO_ROOT, nowIso: FIXED_NOW, write: false });
   assert.ok(counts.raw >= 12);
   assert.match(text, /^# 색인\n/);
-  assert.match(text, new RegExp(`raw ${counts.raw} · wiki ${counts.wiki}`));
+  assert.match(text, new RegExp(`^- 동기화: 2026-09-09T01:00:00.000Z · raw ${counts.raw} · wiki ${counts.wiki}$`, 'm'));
+  assert.equal(text.includes('생성:'), false, '색인은 벽시계를 담지 않는다 (CI 가 재생성해 diff 를 비교한다)');
+  assert.match(text, /검토기한 경과\(2026-09-09 기준\)/);
+  const other = buildIndex({ cfg, rootDir: REPO_ROOT, nowIso: '2030-01-01T00:00:00.000Z', write: false });
+  assert.equal(other.text, text, '실행 시각이 달라도 출력이 같다');
   assert.match(text, /^### 루틴핏 \/ CS$/m);
   assert.match(text, /^- ⚠ \[2025 CS 응대 원칙\]\(\.\.\/raw\/routinefit\/cs\/[^)]+\) · meta 없음 · 2025-11-20/m);
   assert.match(text, /^- \[환불 처리 응대 가이드\]\(\.\.\/raw\/routinefit\/cs\/[^)]+\) · FAQ·응대 · 확정 · 김하늘 · 2026-08-30 — .+ · 키워드: .*환불/m);

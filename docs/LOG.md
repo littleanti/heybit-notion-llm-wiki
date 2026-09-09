@@ -14,8 +14,20 @@
 
 ### `[chore]` P9 — GitHub public 저장소 생성 · push · CI 확인 · 상태: `진행중`
 
-**착수 예정**: `gh repo create littleanti/heybit-notion-llm-wiki --public` → push → Actions(Node 22·24) 결과 확인.
-push 전 점검: `.env` 미포함, 토큰 형태 문자열 grep(테스트의 가짜 `ntn_mock`/`ntn_test_token` 만 존재해야 함), fixture·raw 에 실제 정보 없음(전부 가상).
+**내용**: push 전 점검(`.env` 미포함 · 토큰 형태 문자열 없음 · `node_modules`/lockfile 없음) 후
+`gh repo create littleanti/heybit-notion-llm-wiki --public --push` 로 생성·푸시했다 (2026-09-09, 커밋 10개).
+
+**CI 첫 실행(run 34367367488) 이 잡은 결함 — `[fix]` 진행중**
+- Node 22·24 매트릭스 모두 **`npm test` 64/64 통과, `npm run lint` 통과** → A16(clone 후 `npm test` 만으로 재현)과 Node 22 실동작이 **실측으로 확인**됐다.
+- 마지막 단계 "색인이 최신인지(build-index 재실행 후 diff 없음)" 가 **양쪽에서 실패**. 원인: `wiki/index.md` 헤더의 `생성: <현재 시각>` 이 실행마다 달라진다.
+  TRD 6.4 가 약속한 "같은 입력이면 바이트까지 같은 출력" 을 색인이 스스로 어기고 있었다 — 테스트는 시각을 주입해 통과했으므로 로컬에서는 드러나지 않았다.
+  같은 종류의 시한폭탄이 하나 더 있다: `⏰`(검토기한 경과) 판정의 기준일이 벽시계라, 날짜가 바뀌어 어떤 `review_by` 를 지나치면 아무도 손대지 않은 색인이 CI 에서 "낡았다" 고 실패한다.
+- 수정 (`[fix]` 완료 — 로컬 검증): (1) 헤더에서 `생성:` 을 뺐다 — 생성 시각은 git 커밋이 기록한다. (2) 검토기한 기준일을 **동기화 날짜(`syncedAt`)** 로 바꿨다 — "마지막 동기화 시점 기준 경과" 라는 뜻이 되고 입력만으로 결정된다.
+  변경 파일: `scripts/build-index.js`, `test/index.test.js`(실행 시각을 2030년으로 바꿔도 출력이 같은지 확인하는 검사 추가), `test/golden/index.md`, `wiki/index.md`, `docs/DESIGN.md` 5.1, `docs/TRD.md` 6.4.
+  검증: `npm test` **64/64**, 색인 재생성 후 diff 없음(로컬). **CI 재실행 결과는 아래에 기록.**
+
+> 교훈: 결정성은 "테스트에서 시각을 고정할 수 있다" 가 아니라 "실제 실행이 시각에 의존하지 않는다" 여야 한다. 테스트가 주입한 시각은
+> 이 결함을 가렸고, 아무것도 주입하지 않는 CI 가 드러냈다. 자매 저장소의 "검증 스크립트가 틀렸던" 사례와 같은 계열 — **측정 환경이 통과시킨 것을 실환경이 뒤집었다.**
 
 ---
 
