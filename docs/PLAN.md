@@ -1,6 +1,6 @@
 # PLAN — heybit-notion-llm-wiki
 
-- 문서 버전: 0.1 (2026-09-09) — P0 초안
+- 문서 버전: 1.0 (2026-09-09) — P0~P8 완료, P9(GitHub 생성·푸시) 진행
 - 문서 역할: **언제 · 어떤 순서로** 만드는가
 - 관련 문서: [PRD](./PRD.md) · [TRD](./TRD.md) · [DESIGN](./DESIGN.md) · [LOG](./LOG.md)
 
@@ -34,7 +34,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P5 | `md-notion.js` + `publish.js` | T11~T14 | `완료` |
 | P6 | 스킬 (SKILL.md·references) + **ingest 실제 수행**으로 샘플 위키 합성 + query 3건 실행 | T16 · A14 실행 기록 | `완료` |
 | P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `완료` |
-| P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `대기` |
+| P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `완료` |
 | P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `대기` |
 
 ---
@@ -175,7 +175,8 @@ T14(루트 밖 id → 거부·쓰기 0) 통과. → 커밋 6
 
 **출구 조건**: A1~A17 중 fixture 로 검증 가능한 전 항목 PASS, 실 Notion 항목은 미확정으로 명시. → 커밋 9
 
-**상태: `대기`**
+**상태: `완료`** — `npm test` 64/64 · lint 오류 0. A6·A13 은 ADR-006 채택으로 재정의해 통과, A16 은 로컬 통과 + CI 확인 예정, A17 은 자체 점검(실무자 사용성 실측 없음). 상세는 [PRD 6절](./PRD.md#6-acceptance-기준).
+docs 4종을 1.0 으로 올리고, P6 실행에서 보강한 위키 템플릿 규칙(충돌 표 `비고` 열 · conflicts `미확정` 절 · 표기 규칙)을 DESIGN 3절에 동기화했다.
 
 ## P9 — GitHub public 저장소 생성 · push
 

@@ -1,6 +1,6 @@
 # TRD — heybit-notion-llm-wiki
 
-- 문서 버전: 0.1 (2026-09-09) — P0 초안. 구현·검증 결과에 따라 갱신한다
+- 문서 버전: 1.0 (2026-09-09) — P0 에서 0.1 초안으로 작성, P1~P8 의 구현·검증 결과를 반영해 확정
 - 문서 역할: **어떻게** 만드는가 (아키텍처 · 계약 · 알고리즘 · 결정 기록 · 검증)
 - 관련 문서: [PRD](./PRD.md) · [DESIGN](./DESIGN.md) · [PLAN](./PLAN.md) · [LOG](./LOG.md)
 
@@ -72,14 +72,14 @@
 
 | 영역 | 선택 | 근거 | 검증 상태 |
 |---|---|---|---|
-| 런타임 | Node.js `>=22` | 자매 저장소와 동일. 내장 `fetch`·`node:test`·`node:fs` 만 사용 → **의존성 0개**, `npm install` 불필요 | Node 24 로컬 확인 예정(P1). Node 22 는 CI 매트릭스 |
-| Notion API | REST, `Notion-Version: 2026-03-11` | 최신 버전. `2025-09-03` 의 data source 모델과 `2026-02-26` 의 Markdown 엔드포인트를 포함 | **공식 문서로 확인** (3.1). 실 워크스페이스 미실측 |
-| 본문 I/O | **Markdown 엔드포인트** (`GET /v1/pages/{id}/markdown`, `POST /v1/pages` + `markdown`, `PATCH /v1/pages/{id}/markdown`) | 블록 변환기를 만들지 않는다 (ADR-006) | 문서 확인. fixture 로 계약 고정 |
-| 발견(discovery) | `POST /v1/search` + `POST /v1/data_sources/{id}/query` | 블록 트리 순회 없이 전체 목록과 `last_edited_time` 을 얻는다 (ADR-007) | 문서 확인 |
-| 설정 | `notion-wiki.config.json` + `.env` | dotenv 없이 `.env` 를 직접 파싱 (KEY=VALUE 줄) | — |
-| frontmatter | YAML **부분집합** (스칼라·문자열·불리언·숫자·스칼라 배열) | 파서 의존성을 피한다. 부분집합 밖의 YAML 은 lint 가 거부한다 | — |
-| 테스트 | `node:test` + golden 파일 + **주입식 mock fetch** | 토큰 없이 전 경로 실행 | — |
-| 스킬 | `.claude/skills/notion-llm-wiki/SKILL.md` | 공식 스킬 규약 (3.2) | 문서 확인 |
+| 런타임 | Node.js `>=22` | 자매 저장소와 동일. 내장 `fetch`·`node:test`·`node:fs` 만 사용 → **의존성 0개**, `npm install` 불필요 | Node 24.14.1 로컬 실측(64 테스트). Node 22 는 P9 CI 매트릭스 |
+| Notion API | REST, `Notion-Version: 2026-03-11` | 최신 버전. `2025-09-03` 의 data source 모델과 `2026-02-26` 의 Markdown 엔드포인트를 포함 | **공식 문서로 확인** (3.1). 실 워크스페이스 **미실측** |
+| 본문 I/O | **Markdown 엔드포인트** (`GET /v1/pages/{id}/markdown`, `POST /v1/pages` + `markdown`, `PATCH /v1/pages/{id}/markdown`) | 블록 변환기를 만들지 않는다 (ADR-006) | 문서 확인. mock 으로 계약 고정 (T4·T12·T13) |
+| 발견(discovery) | `POST /v1/search` + `POST /v1/data_sources/{id}/query` | 블록 트리 순회 없이 전체 목록과 `last_edited_time` 을 얻는다 (ADR-007) | 문서 확인. mock 으로 38 페이지 → 호출 59회 실측 |
+| 설정 | `notion-wiki.config.json` + `.env` | dotenv 없이 `.env` 를 직접 파싱 (KEY=VALUE 줄) | 실측 (config 테스트 4건) |
+| frontmatter | YAML **부분집합** (스칼라·문자열·불리언·숫자·스칼라 배열·평면 객체 배열) | 파서 의존성을 피한다. 부분집합 밖의 YAML 은 명시적으로 거부한다 | 실측 (라운드트립 T1) |
+| 테스트 | `node:test` + golden 파일 + **주입식 mock fetch** | 토큰 없이 전 경로 실행 | 실측 — 64 테스트, 약 3초 |
+| 스킬 | `.claude/skills/notion-llm-wiki/SKILL.md` | 공식 스킬 규약 (3.2) | 문서 확인 + 구조 테스트(T16) + 절차 문서만으로 위키 합성 실행(P6) |
 
 ### 3.1 Notion API — 문서로 확인한 사실 (2026-09-09)
 
