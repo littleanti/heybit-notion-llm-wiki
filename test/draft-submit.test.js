@@ -94,6 +94,11 @@ test('T21 신규: 게시 직후 raw 에 기록되고 이어지는 sync 가 다�
   const text = fs.readFileSync(path.join(rootDir, rawPath), 'utf8');
   const { data, body } = fm.split(text);
   assert.equal(data.notion_id, report.created.id);
+  // 범위 필드 — slug 문자열을 넘기면 null 이 되어 lint 가 meta-invalid 를 낸다 (2026-09-10 실측 결함)
+  assert.equal(data.service, 'routinefit');
+  assert.equal(data.service_name, '루틴핏');
+  assert.equal(data.category, 'cs');
+  assert.equal(data.category_name, 'CS');
   assert.equal(data.doc_type, 'FAQ·응대');
   assert.equal(data.status, '초안');
   assert.deepEqual(data.owner, ['박서준']);
@@ -152,6 +157,8 @@ test('T22 수정: pull → 고침 → dry-run diff → apply 가 본문과 속�
   assert.equal(applied.raw.path, rawRel, '같은 파일에 다시 기록한다');
   const after = fm.split(fs.readFileSync(path.join(rootDir, rawRel), 'utf8'));
   assert.equal(after.data.status, '검토중');
+  assert.equal(after.data.service, 'routinefit');
+  assert.equal(after.data.category_name, 'CS');
   assert.match(after.body, /환불 기한 안내 문구 보강/);
 });
 

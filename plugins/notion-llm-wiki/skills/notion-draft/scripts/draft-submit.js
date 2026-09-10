@@ -24,7 +24,12 @@ async function dataSourceSchema(client, dsId) {
 }
 
 // 게시한 페이지 하나를 raw 미러와 동기화 상태에 기록한다 (DESIGN 10.8).
+// service·category 는 **설정의 객체**({slug, name})다 — toRawFrontmatter 가 .slug 와 .name 을 함께 쓴다.
+// 문자열 slug 를 넘기면 frontmatter 의 service·category 가 null 이 되어 lint 가 meta-invalid 를 낸다 (2026-09-10 실측 결함).
 async function writeRawMirror({ cfg, client, rootDir, service, category, metaId, bodyId, nowIso }) {
+  if (!service || !category || typeof service !== 'object' || typeof category !== 'object') {
+    throw new Error('writeRawMirror: service·category 는 설정의 객체여야 한다 (slug 문자열이 아니다)');
+  }
   const metaPage = await client.request('GET', `/v1/pages/${metaId}`);
   const bodyPage = bodyId === metaId ? metaPage : await client.request('GET', `/v1/pages/${bodyId}`);
   const md = await client.request('GET', `/v1/pages/${bodyId}/markdown`);
@@ -57,7 +62,7 @@ async function writeRawMirror({ cfg, client, rootDir, service, category, metaId,
   if (md.truncated || (md.unknown_block_ids || []).length) {
     body += `\n<!-- notion: truncated=${Boolean(md.truncated)} unknown_block_ids=${(md.unknown_block_ids || []).join(',') || '없음'} -->`;
   }
-  const rel = `${cfg.paths.raw}/${service}/${category}/${slug.rawFileName(title, metaId)}`;
+  const rel = `${cfg.paths.raw}/${service.slug}/${category.slug}/${slug.rawFileName(title, metaId)}`;
   const abs = path.join(rootDir, rel);
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   fs.writeFileSync(abs, fm.join(frontmatter, body.endsWith('\n') ? body : `${body}\n`), 'utf8');
@@ -144,7 +149,7 @@ async function submitNew({ cfg, client, rootDir, draft, service, category, apply
   const id = config.normalizeId(created.id);
   report.created = { id, url: created.url, title: draft.data.title };
   log(`생성: ${draft.data.title} (${id})`);
-  report.raw = await writeRawMirror({ cfg, client, rootDir, service: service.slug, category: category.slug, metaId: id, bodyId: id, nowIso });
+  report.raw = await writeRawMirror({ cfg, client, rootDir, service, category, metaId: id, bodyId: id, nowIso });
 }
 
 async function submitEdit({ cfg, client, rootDir, draft, service, category, apply, nowIso, report, log }) {
@@ -207,7 +212,7 @@ async function submitEdit({ cfg, client, rootDir, draft, service, category, appl
     report.updated.body = true;
     log(`본문 교체: ${bodyId}`);
   }
-  report.raw = await writeRawMirror({ cfg, client, rootDir, service: service.slug, category: category.slug, metaId, bodyId, nowIso });
+  report.raw = await writeRawMirror({ cfg, client, rootDir, service, category, metaId, bodyId, nowIso });
 }
 
 function summaryLine(report) {

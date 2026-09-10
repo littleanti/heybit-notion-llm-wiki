@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "heybit 샘플 — Notion 실무 문서를 Claude Code 가 LLM wiki 로 합성하고 다시 Notion 에 게시하는 스킬",
-    "version": "0.2.1"
+    "version": "0.2.2"
   },
   "plugins": [
     {
