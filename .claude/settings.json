@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "heybit-notion-llm-wiki": {
+      "source": {
+        "source": "github",
+        "repo": "littleanti/heybit-notion-llm-wiki"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "notion-llm-wiki@heybit-notion-llm-wiki": true
+  }
+}

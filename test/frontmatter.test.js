@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fm = require('../.claude/skills/notion-llm-wiki/scripts/lib/frontmatter');
+const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/frontmatter');
 
 const sample = {
   notion_id: '3f9a1c2b-0000-4000-8000-000000000001',

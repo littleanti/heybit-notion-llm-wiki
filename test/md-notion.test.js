@@ -3,8 +3,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { toEnhancedMarkdown, escapeText, callout } = require('../.claude/skills/notion-llm-wiki/scripts/lib/md-notion');
-const fm = require('../.claude/skills/notion-llm-wiki/scripts/lib/frontmatter');
+const { toEnhancedMarkdown, escapeText, callout } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/md-notion');
+const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/frontmatter');
 
 const GOLDEN_DIR = path.join(__dirname, 'golden');
 

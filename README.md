@@ -31,9 +31,9 @@ heybit 의 Notion 은 `서비스 상위 페이지 → 카테고리(상품기획�
 
 | 질문 | 짧은 답 | 상세 |
 |---|---|---|
-| **① 실무 페이지를 앞으로 어떻게 써야 하나?** | 카테고리마다 **Notion 데이터베이스** 하나. 신규 페이지는 그 DB 의 항목으로, 채울 것은 **제목·문서유형·상태·요약·담당자 5개**. 본문은 유형별 템플릿(요약 → 유형별 섹션 → 미확정 → 변경 이력). **기존 페이지는 옮기지 않고** DB 에 `원본` 링크만 담은 등록 항목을 만든다. | [DESIGN 1·2절](./docs/DESIGN.md#1-notion-데이터베이스-스키마), 실무자용 요약 [`notion-authoring.md`](./.claude/skills/notion-llm-wiki/references/notion-authoring.md) |
+| **① 실무 페이지를 앞으로 어떻게 써야 하나?** | 카테고리마다 **Notion 데이터베이스** 하나. 신규 페이지는 그 DB 의 항목으로, 채울 것은 **제목·문서유형·상태·요약·담당자 5개**. 본문은 유형별 템플릿(요약 → 유형별 섹션 → 미확정 → 변경 이력). **기존 페이지는 옮기지 않고** DB 에 `원본` 링크만 담은 등록 항목을 만든다. | [DESIGN 1·2절](./docs/DESIGN.md#1-notion-데이터베이스-스키마), 실무자용 요약 [`notion-authoring.md`](./plugins/notion-llm-wiki/skills/notion-llm-wiki/references/notion-authoring.md) |
 | **② LLM wiki 는 어떤 구조로?** | 단일 페이지도, 원본 1:1 트리도 아니다. **색인 1장(페이지당 한 줄) + 서비스별 [개요 · 카테고리 다이제스트 · 교차 토픽 · 충돌/미확정] + 변경 이력.** 수십~수백 페이지에서 색인 한 장은 한 번에 읽히므로 임베딩이 필요 없다. 위키는 Notion 에 게시되어 실무자는 Notion 안에서 읽는다. | [DESIGN 3절](./docs/DESIGN.md#3-위키-페이지-종류와-템플릿), [TRD ADR-002·004](./docs/TRD.md#adr) |
-| **③ 누가 어떻게 운영하나?** | Claude Code 스킬 `/notion-llm-wiki` 의 다섯 동작 — `sync`(Notion→미러) → `ingest`(위키 합성) → `lint` → `publish`(미러→Notion), 그리고 `query`(질문에 답). 벡터 DB·별도 LLM 서버 없음, 외부 npm 의존성 0개. | [6절](#6-사용법--스킬-서브커맨드-5개), [`SKILL.md`](./.claude/skills/notion-llm-wiki/SKILL.md) |
+| **③ 누가 어떻게 운영하나?** | Claude Code 스킬 `/notion-llm-wiki`(플러그인 `notion-llm-wiki@heybit-notion-llm-wiki` 로 설치) 의 다섯 동작 — `sync`(Notion→미러) → `ingest`(위키 합성) → `lint` → `publish`(미러→Notion), 그리고 `query`(질문에 답). 벡터 DB·별도 LLM 서버 없음, 외부 npm 의존성 0개. | [6절](#6-사용법--스킬-서브커맨드-5개), [`SKILL.md`](./plugins/notion-llm-wiki/skills/notion-llm-wiki/SKILL.md) |
 
 ## 2. 한눈에 보는 흐름
 
@@ -80,12 +80,17 @@ heybit-notion-llm-wiki/
 ├── .env.example                       NOTION_TOKEN= (실제 .env 는 커밋되지 않는다)
 ├── package.json                       scripts 만 — dependencies 없음
 │
-├── docs/                              ★ 판단 근거. PRD(무엇·왜) · TRD(어떻게, ADR-001~008) · DESIGN(형식·템플릿) · PLAN · LOG
+├── docs/                              ★ 판단 근거. PRD(무엇·왜) · TRD(어떻게, ADR-001~009) · DESIGN(형식·템플릿) · PLAN · LOG
 │
-├── .claude/skills/notion-llm-wiki/    ★ 스킬
-│   ├── SKILL.md                       /notion-llm-wiki <sync|ingest|query|lint|publish>
-│   ├── references/                    wiki-schema(위키 규칙 정본) · ingest/query 절차 · 의미 lint · 실무자 안내
-│   └── scripts/                       sync.js · build-index.js · lint.js · publish.js · register-legacy.js · lib/
+├── .claude-plugin/marketplace.json    마켓플레이스 heybit-notion-llm-wiki (플러그인 1개 → ./plugins/notion-llm-wiki)
+├── .claude/settings.json              이 저장소를 열면 위 마켓플레이스·플러그인 설치를 권장
+├── plugins/notion-llm-wiki/           ★ Claude Code 플러그인 — 설치되는 것은 이 디렉터리만
+│   ├── .claude-plugin/plugin.json     name notion-llm-wiki · version(package.json 과 동일)
+│   ├── README.md                      플러그인 단독 안내
+│   └── skills/notion-llm-wiki/        ★ 스킬
+│       ├── SKILL.md                   /notion-llm-wiki <sync|ingest|query|lint|publish>. 스크립트는 ${CLAUDE_SKILL_DIR}/scripts/…
+│       ├── references/                wiki-schema(위키 규칙 정본) · ingest/query 절차 · 의미 lint · 실무자 안내
+│       └── scripts/                   sync.js · build-index.js · lint.js · publish.js · register-legacy.js · lib/
 │
 ├── raw/                               Notion 미러 (샘플 = 골든). .sync-state.json · .sync-report.md
 ├── wiki/                              LLM 이 합성한 위키. index.md · log.md · <서비스>/…  · .publish-state.json
@@ -94,7 +99,7 @@ heybit-notion-llm-wiki/
 │   ├── fixtures/                      workspace.json(구조) · pages-routinefit.json · pages-moneynote.json
 │   ├── helpers/                       mock-notion.js · sync-harness.js · generate-golden.js
 │   └── golden/                        index.md · publish-plan.json · md-notion.*.md
-└── .github/workflows/ci.yml           Node 22·24 매트릭스: npm test → lint → 색인 최신 확인
+└── .github/workflows/ci.yml           Node 22·24 매트릭스: npm test → lint → 색인 최신 확인 · 플러그인 매니페스트 validate --strict
 ```
 
 ## 5. 설치와 Notion 준비
@@ -109,6 +114,16 @@ git clone https://github.com/littleanti/heybit-notion-llm-wiki.git
 cd heybit-notion-llm-wiki
 npm test                 # 토큰 없이 전 기능이 fixture 로 검증된다
 ```
+
+**스킬 설치 — 두 가지 길**
+
+| 상황 | 방법 |
+|---|---|
+| **내 저장소에서 쓴다** (보통의 경우) | `claude plugin marketplace add littleanti/heybit-notion-llm-wiki` → `claude plugin install notion-llm-wiki@heybit-notion-llm-wiki`. Claude Code 안에서는 `/plugin marketplace add …` → `/plugin install …`. 그 저장소 루트에 `notion-wiki.config.json` 과 `.env` 를 두면 끝이다 (5.2·5.3). 갱신은 `claude plugin marketplace update` → `claude plugin update notion-llm-wiki` |
+| **이 샘플 저장소를 연다** | `.claude/settings.json` 이 같은 마켓플레이스·플러그인을 선언해 두었으므로, 폴더를 신뢰하면 Claude Code 가 설치를 제안한다. 스킬 자체를 고치는 중이라면 설치 대신 `claude --plugin-dir plugins/notion-llm-wiki` 로 로컬 사본을 로드한다 (둘을 동시에 켜면 같은 스킬이 두 번 보인다) |
+
+플러그인의 실체는 [`plugins/notion-llm-wiki/`](./plugins/notion-llm-wiki/) 하나다. 예전처럼 `skills/notion-llm-wiki/` 디렉터리를 `.claude/skills/` 로 복사해도
+동작한다 — 스크립트 경로가 `${CLAUDE_SKILL_DIR}` 기준이라 위치에 무관하다 ([TRD ADR-009](./docs/TRD.md#adr-009--배포-단위는-플러그인-스킬-복사가-아니라)).
 
 ### 5.2 Notion 쪽 준비 (실제 워크스페이스에 붙일 때)
 
@@ -136,14 +151,14 @@ npm test                 # 토큰 없이 전 기능이 fixture 로 검증된다
 
 ## 6. 사용법 — 스킬 서브커맨드 5개
 
-Claude Code 에서 저장소를 열면 `.claude/skills/notion-llm-wiki/` 가 자동 인식된다. `/notion-llm-wiki <서브커맨드>` 로 부르거나
-"노션 위키 동기화해", "위키에서 환불 정책 찾아줘" 처럼 말하면 스킬이 자동으로 선택된다.
+플러그인을 설치했거나 `--plugin-dir` 로 로드했으면 `/notion-llm-wiki <서브커맨드>` (정식 이름은 `/notion-llm-wiki:notion-llm-wiki`) 로 부르거나
+"노션 위키 동기화해", "위키에서 환불 정책 찾아줘" 처럼 말하면 스킬이 자동으로 선택된다. 스크립트는 **현재 디렉터리**를 위키 작업 공간으로 본다.
 
 | 서브커맨드 | 하는 일 | 주체 | 스크립트 직접 실행 |
 |---|---|---|---|
 | `sync` | Notion → `raw/` 증분 동기화. 바뀐 페이지만 받는다 | 스크립트 | `npm run sync` (`--full` 로 전체) |
-| `ingest` | `raw/.sync-report.md` 의 변경분을 읽어 `wiki/` 갱신 → 색인 → lint → log | **Claude** | (LLM 절차 — [`ingest-procedure.md`](./.claude/skills/notion-llm-wiki/references/ingest-procedure.md)) |
-| `query <질문>` | 색인 → 위키 → 원문 grep 순서로 찾아 **출처·상태·동기화 시각**을 붙여 답한다 | **Claude** | (LLM 절차 — [`query-procedure.md`](./.claude/skills/notion-llm-wiki/references/query-procedure.md)) |
+| `ingest` | `raw/.sync-report.md` 의 변경분을 읽어 `wiki/` 갱신 → 색인 → lint → log | **Claude** | (LLM 절차 — [`ingest-procedure.md`](./plugins/notion-llm-wiki/skills/notion-llm-wiki/references/ingest-procedure.md)) |
+| `query <질문>` | 색인 → 위키 → 원문 grep 순서로 찾아 **출처·상태·동기화 시각**을 붙여 답한다 | **Claude** | (LLM 절차 — [`query-procedure.md`](./plugins/notion-llm-wiki/skills/notion-llm-wiki/references/query-procedure.md)) |
 | `lint` | 구조 lint(frontmatter·링크·출처·고아·크기) + 의미 lint(모순·불일치) | 둘 다 | `npm run lint` (`--json`, `--strict`) |
 | `publish` | `wiki/` → Notion 위키 루트 아래 게시. **dry-run 기본**, `--apply` 로 실제 쓰기 | 스크립트 | `npm run publish:wiki` / `npm run publish:wiki -- --apply` |
 
@@ -157,14 +172,17 @@ npm run index                               # raw/wiki frontmatter → wiki/inde
 npm run lint                                # 오류가 있으면 종료 코드 1, 경고만 있으면 0
 npm run publish:wiki                        # dry-run — 무엇을 만들고 바꿀지만 보여 준다
 npm run publish:wiki -- --apply             # 실제 게시 (위키 루트 아래 자기 페이지만)
-node .claude/skills/notion-llm-wiki/scripts/register-legacy.js --service routinefit --category cs [--apply]
+node plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/register-legacy.js --service routinefit --category cs [--apply]
 ```
+
+`npm run …` 은 이 샘플 저장소 안에서만 있다. 다른 프로젝트에서는 설치된 플러그인의 스크립트를 직접 부른다
+(경로는 [`plugins/notion-llm-wiki/README.md`](./plugins/notion-llm-wiki/README.md)).
 
 `ingest` 와 `query` 는 스크립트가 아니라 **Claude Code 가 따르는 절차**다. 절차 문서는 사람이 읽어도 그대로 따라갈 수 있게 썼다.
 
 ### 실무자에게 알려 줄 것
 
-한 장짜리 안내: [`references/notion-authoring.md`](./.claude/skills/notion-llm-wiki/references/notion-authoring.md).
+한 장짜리 안내: [`references/notion-authoring.md`](./plugins/notion-llm-wiki/skills/notion-llm-wiki/references/notion-authoring.md).
 핵심은 "채울 것은 5개, 확정만 사실로 쓰인다, 미확정은 미확정 섹션에, 키워드에 동의어".
 
 ## 7. 테스트
@@ -185,6 +203,7 @@ fixture 워크스페이스를 Notion API 형태로 서빙하고, 쓰기 요청�
 | skill · register-legacy | SKILL.md 구조, 서브커맨드↔references, 미등록 레거시만 등록 |
 
 CI(`.github/workflows/ci.yml`)는 Node **22·24** 에서 같은 테스트를 돌리고, `wiki/index.md` 가 최신인지도 확인한다.
+별도 잡이 Claude Code CLI 로 `claude plugin validate --strict` 를 플러그인과 마켓플레이스 양쪽에 돌린다.
 
 ## 8. 한계와 미확정
 
@@ -199,6 +218,7 @@ CI(`.github/workflows/ci.yml`)는 Node **22·24** 에서 같은 테스트를 돌
 | **권한(ACL)** | 범위 밖 | 위키 독자 = 동기화 범위 열람자 단일 집단을 가정한다. 권한이 다른 페이지는 `민감` 으로 표시해 빼는 것이 유일한 수단 |
 | **코멘트 수집** | 범위 밖 | 위키 페이지에 달린 정정 요청 코멘트를 자동으로 읽어 오지 않는다. 블록 교체 시 페이지 코멘트가 유지되는지도 **미실측** |
 | **Notion 파일 URL** | 알려진 한계 | 1시간 후 만료된다. 미러는 URL 만 두고 주석으로 명시한다 |
+| **플러그인 GitHub 경유 설치** | 미실측 | 로컬에서 `claude plugin validate --strict` 와 `--plugin-dir` 로드는 확인했다. `marketplace add` → `install` 로 캐시에 복사되는 실제 설치·갱신은 push 뒤 확인할 일이다 ([TRD 3.3](./docs/TRD.md#33-claude-code-플러그인-규약--문서로-확인한-사실-2026-09-10)) |
 
 ## 9. 문서
 
@@ -208,9 +228,9 @@ CI(`.github/workflows/ci.yml`)는 Node **22·24** 에서 같은 테스트를 돌
 | 문서 | 내용 |
 |---|---|
 | [`docs/PRD.md`](./docs/PRD.md) | **무엇을·왜** — 현재 Notion 구조의 문제, LLM wiki 패턴, FR1~FR7, DR1~DR7, Acceptance A1~A17, Out of scope |
-| [`docs/TRD.md`](./docs/TRD.md) | **어떻게** — 아키텍처, Notion API 확인 사실, 모듈 계약, 테스트 전략, **ADR-001~008** (위키 위치 · RAG 없는 검색 · meta 위치 · 페이지 종류 · 편집 소유권 · Markdown 엔드포인트 · 발견 방식 · 스킬 구조) |
+| [`docs/TRD.md`](./docs/TRD.md) | **어떻게** — 아키텍처, Notion API·플러그인 규약 확인 사실, 모듈 계약, 테스트 전략, **ADR-001~009** (위키 위치 · RAG 없는 검색 · meta 위치 · 페이지 종류 · 편집 소유권 · Markdown 엔드포인트 · 발견 방식 · 스킬 구조 · 플러그인 배포) |
 | [`docs/DESIGN.md`](./docs/DESIGN.md) | **어떤 형식으로** — Notion DB 스키마, 본문 템플릿, 레거시 등록, 위키 템플릿, frontmatter, 색인·이력·답변 형식, 문구 정본 |
-| [`docs/PLAN.md`](./docs/PLAN.md) | **언제·어떤 순서로** — P0~P9 와 출구 조건 |
+| [`docs/PLAN.md`](./docs/PLAN.md) | **언제·어떤 순서로** — P0~P10 과 출구 조건 |
 | [`docs/LOG.md`](./docs/LOG.md) | **변경 이력** — 각 단계에서 무엇을 검증했고, 무엇이 실측으로 뒤집혔나 |
 
 읽을 순서를 하나만 추천한다면 [`docs/TRD.md`](./docs/TRD.md) 의 **ADR-006** 이다. "블록 API 로 변환기 두 개를 만든다" 던 첫 설계가

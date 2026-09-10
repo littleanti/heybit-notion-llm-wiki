@@ -5,10 +5,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { REPO_ROOT } = require('./helpers/sync-harness');
-const { loadConfig } = require('../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const { lint, summaryLine } = require('../.claude/skills/notion-llm-wiki/scripts/lint');
-const { buildIndex } = require('../.claude/skills/notion-llm-wiki/scripts/build-index');
-const fm = require('../.claude/skills/notion-llm-wiki/scripts/lib/frontmatter');
+const { loadConfig } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const { lint, summaryLine } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lint');
+const { buildIndex } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/build-index');
+const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/frontmatter');
 
 const TODAY = '2026-09-09';
 

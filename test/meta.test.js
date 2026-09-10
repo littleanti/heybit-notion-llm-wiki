@@ -2,8 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { loadConfig } = require('../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const meta = require('../.claude/skills/notion-llm-wiki/scripts/lib/meta');
+const { loadConfig } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const meta = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/meta');
 
 const cfg = loadConfig(path.resolve(__dirname, '..'));
 

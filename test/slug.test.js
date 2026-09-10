@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { sanitizeTitle, shortId, rawFileName, MAX_TITLE_CHARS } = require('../.claude/skills/notion-llm-wiki/scripts/lib/slug');
+const { sanitizeTitle, shortId, rawFileName, MAX_TITLE_CHARS } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/slug');
 
 const ID = '3f9a1c2b-0000-4000-8000-000000000001';
 

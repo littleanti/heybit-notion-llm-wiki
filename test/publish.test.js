@@ -6,9 +6,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { REPO_ROOT, FIXED_NOW, makeClient } = require('./helpers/sync-harness');
 const { loadWorkspace, createMockNotion } = require('./helpers/mock-notion');
-const { loadConfig } = require('../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const { runPublish, STATE_FILE } = require('../.claude/skills/notion-llm-wiki/scripts/publish');
-const fm = require('../.claude/skills/notion-llm-wiki/scripts/lib/frontmatter');
+const { loadConfig } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const { runPublish, STATE_FILE } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/publish');
+const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/frontmatter');
 
 const GOLDEN = path.join(REPO_ROOT, 'test', 'golden', 'publish-plan.json');
 

@@ -7,9 +7,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { REPO_ROOT, FIXED_NOW, syncOnce, listFiles } = require('./sync-harness');
-const { loadConfig } = require('../../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const { buildIndex } = require('../../.claude/skills/notion-llm-wiki/scripts/build-index');
-const { runPublish } = require('../../.claude/skills/notion-llm-wiki/scripts/publish');
+const { loadConfig } = require('../../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const { buildIndex } = require('../../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/build-index');
+const { runPublish } = require('../../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/publish');
 
 async function main(argv) {
   const goldenDir = path.join(REPO_ROOT, 'test', 'golden');

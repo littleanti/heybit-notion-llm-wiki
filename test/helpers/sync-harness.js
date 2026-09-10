@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { loadWorkspace, createMockNotion } = require('./mock-notion');
-const { loadConfig } = require('../../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const { createClient } = require('../../.claude/skills/notion-llm-wiki/scripts/lib/notion-client');
-const { runSync } = require('../../.claude/skills/notion-llm-wiki/scripts/sync');
+const { loadConfig } = require('../../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const { createClient } = require('../../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/notion-client');
+const { runSync } = require('../../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/sync');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const FIXED_NOW = '2026-09-09T01:00:00.000Z';

@@ -5,7 +5,7 @@
 
 ## 준비
 
-1. `node .claude/skills/notion-llm-wiki/scripts/lint.js --json` 으로 구조 결과를 받는다 (경고 목록이 입력의 일부다).
+1. `node <스크립트 디렉터리>/lint.js --json` 으로 구조 결과를 받는다 (경고 목록이 입력의 일부다). 스크립트 디렉터리는 SKILL.md 상단의 `${CLAUDE_SKILL_DIR}/scripts`.
 2. `wiki/index.md` 로 서비스·카테고리별 raw 목록을 본다.
 
 ## 체크리스트

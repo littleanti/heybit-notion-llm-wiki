@@ -30,5 +30,22 @@ jobs:
         run: npm run lint
       - name: 색인이 최신인지 (build-index 재실행 후 차이 없음)
         run: |
-          node .claude/skills/notion-llm-wiki/scripts/build-index.js
+          node plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/build-index.js
           git diff --exit-code -- wiki/index.md || (echo "wiki/index.md 가 최신이 아니다. build-index 를 돌려 커밋하라." && exit 1)
+
+  plugin:
+    name: plugin manifest (claude plugin validate --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Claude Code CLI 설치 (러너 전역 — 저장소 의존성은 여전히 0)
+        run: npm install -g @anthropic-ai/claude-code && claude --version
+      - name: 플러그인 매니페스트·스킬 검증
+        run: claude plugin validate --strict plugins/notion-llm-wiki
+      - name: 마켓플레이스 매니페스트 검증
+        run: claude plugin validate --strict .
+      - name: T18 (플러그인 정합성 테스트만)
+        run: node --test test/plugin.test.js

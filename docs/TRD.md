@@ -54,7 +54,7 @@
    │  ④ lint (스크립트: 구조 / 스킬: 의미)                                         │
    │  wiki/.publish-state.json                                                  │
    │                                                                            │
-   │  .claude/skills/notion-llm-wiki/  SKILL.md · references/ · scripts/         │
+   │  plugins/notion-llm-wiki/skills/notion-llm-wiki/  SKILL.md·references/·scripts/ │
    │  notion-wiki.config.json · .env(NOTION_TOKEN, gitignore)                    │
    └────────────────────────────────────────────────────────────────────────────┘
                ▲
@@ -79,7 +79,7 @@
 | 설정 | `notion-wiki.config.json` + `.env` | dotenv 없이 `.env` 를 직접 파싱 (KEY=VALUE 줄) | 실측 (config 테스트 4건) |
 | frontmatter | YAML **부분집합** (스칼라·문자열·불리언·숫자·스칼라 배열·평면 객체 배열) | 파서 의존성을 피한다. 부분집합 밖의 YAML 은 명시적으로 거부한다 | 실측 (라운드트립 T1) |
 | 테스트 | `node:test` + golden 파일 + **주입식 mock fetch** | 토큰 없이 전 경로 실행 | 실측 — 64 테스트, 약 3초 |
-| 스킬 | `.claude/skills/notion-llm-wiki/SKILL.md` | 공식 스킬 규약 (3.2) | 문서 확인 + 구조 테스트(T16) + 절차 문서만으로 위키 합성 실행(P6) |
+| 스킬 | `plugins/notion-llm-wiki/skills/notion-llm-wiki/SKILL.md` — Claude Code **플러그인**으로 배포 (3.3, ADR-009) | 공식 스킬·플러그인 규약 (3.2·3.3) | 문서 확인 + 구조 테스트(T16·T18) + `claude plugin validate --strict` + `--plugin-dir` 로드 + 절차 문서만으로 위키 합성 실행(P6) |
 
 ### 3.1 Notion API — 문서로 확인한 사실 (2026-09-09)
 
@@ -116,8 +116,35 @@
 - 권장 구조: SKILL.md 500줄 이내, 상세는 `references/`·`scripts/` 로 분리해 필요할 때 읽게 한다.
 - 서브커맨드는 공식 기능이 아니다. 단일 스킬 + 인자 분기 또는 스킬 여러 개. → 이 프로젝트는
   **단일 스킬 + `$0` 분기**를 택한다 (ADR-008).
-- 검증: `claude plugin validate <dir> --strict`. **미확정**: `allowed-tools` 안에서
-  `${CLAUDE_SKILL_DIR}` 치환이 되는지 — 되지 않을 것을 전제로 프로젝트 상대 경로를 쓴다.
+- 검증: `claude plugin validate <dir> --strict`.
+- **(2026-09-10 확인, skills.md)** `${CLAUDE_SKILL_DIR}` 와 `${CLAUDE_PROJECT_DIR}` 는 **스킬 본문과 `allowed-tools` 의 Bash 규칙 두 곳**에서
+  치환된다. 플러그인 스킬에서는 `${CLAUDE_PLUGIN_ROOT}`·`${CLAUDE_PLUGIN_DATA}` 도 같은 두 곳에서 치환된다. 문서의 예:
+  `allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/render.sh *)` — "같은 변수를 두 곳에 쓰면 권한 프롬프트 없이 번들 스크립트를 실행할 수 있다".
+  P0 의 미확정("allowed-tools 안에서 치환되는가")은 이것으로 해소. `${CLAUDE_SKILL_DIR}` 는 플러그인 스킬에서 **플러그인 루트가 아니라 스킬 하위 디렉터리**를 가리킨다.
+- `references/` 파일에는 치환이 적용되지 않는다(SKILL.md 본문만). references 는 경로를 직접 쓰지 않고 "SKILL.md 의 스크립트 디렉터리" 로 가리킨다.
+
+### 3.3 Claude Code 플러그인 규약 — 문서로 확인한 사실 (2026-09-10)
+
+출처: code.claude.com/docs/en/{plugins, plugins-reference, plugin-marketplaces, discover-plugins, skills}.md. 로컬 CLI 2.1.267 의 `--help` 로 명령 존재를 확인.
+
+- **플러그인 루트** = `.claude-plugin/plugin.json` 이 있는 디렉터리. 스킬은 `skills/<name>/SKILL.md`. 스킬 디렉터리 안의 `references/`·`scripts/` 등
+  **모든 파일이 설치 시 캐시(`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`)로 통째 복사**된다. 락파일이 있으면 `node_modules` 를 자동 설치한다(이 플러그인은 의존성 0, 락파일 없음).
+- `plugin.json`: `name`(필수, kebab-case `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`), `version`(semver 문자열 — 적으면 이 값을 올릴 때만 사용자가 갱신을 받는다), `description`, `author{name,email,url}`,
+  `homepage`, `repository`, `license`, `keywords[]`. 컴포넌트 경로(`skills` 등)는 기본 위치를 쓰면 생략.
+- **마켓플레이스** `.claude-plugin/marketplace.json`(저장소 루트): 필수 `name`, `owner{name}`, `plugins[]{name, source}`. `source` 가 `./plugins/x` 같은 상대 경로면
+  **마켓플레이스 루트(`.claude-plugin/` 을 담은 디렉터리) 기준**으로 해석되고 `../` 는 금지. 같은 저장소에 마켓플레이스와 플러그인을 함께 두는 것이 문서의 기본 예다.
+- **설치**: `claude plugin marketplace add <owner>/<repo>` → `claude plugin install <plugin>@<marketplace>`. 모노레포는 `--sparse .claude-plugin plugins`.
+  갱신은 `claude plugin marketplace update` → `claude plugin update <plugin>`.
+- **로컬 검증**: `claude plugin validate <dir> [--strict]` — 매니페스트 구조·컴포넌트 배치·frontmatter 를 검사한다(플러그인 디렉터리와 마켓플레이스 디렉터리 모두 가능).
+  `claude --plugin-dir <dir>` 로 설치 없이 한 세션에 로드한다.
+- **이름**: 플러그인 스킬은 `/<plugin>:<skill>` 로 노출되고, 충돌이 없으면 bare `/<skill>` 도 동작한다. `name` 이 플러그인 접두로 시작하면 2.1.246+ 에서 접두를 겹쳐 붙이지 않는다.
+  frontmatter(`allowed-tools`·`argument-hint`·`$0`…)는 프로젝트 스킬과 동일.
+- **팀 배포**: 프로젝트 `.claude/settings.json` 의 `extraKnownMarketplaces: {<mk>: {source: {source: "github", repo: "owner/repo"}}}` 와 `enabledPlugins: {"<plugin>@<mk>": true}` —
+  폴더를 신뢰한 팀원에게 마켓플레이스가 추가되고 플러그인 설치가 제안된다.
+- **실측(2026-09-10, CLI 2.1.267)**: `claude plugin validate --strict` 가 `plugins/notion-llm-wiki`(플러그인)와 `.`(마켓플레이스) 모두 통과.
+  `claude --plugin-dir plugins/notion-llm-wiki -p "/notion-llm-wiki:notion-llm-wiki" --max-turns 1` 로 띄운 헤드리스 세션에서 스킬이 로드되어 `$0` 분기의 사용법 표가 출력됐다
+  (print 모드에서 bare `/notion-llm-wiki` 는 스킬 호출로 해석되지 않았다 — 대화형에서의 동작은 미실측). `claude plugin details` 는 설치된 플러그인만 받는다(`--plugin-dir` 미지원).
+- 실측하지 않은 것: GitHub 경유 실제 설치(캐시 복사·갱신) — 이 저장소를 public 으로 푸시한 뒤 `marketplace add` 로 확인할 수 있다. **미확정**으로 남긴다.
 
 ## 4. 저장소 구조
 
@@ -133,28 +160,34 @@ heybit-notion-llm-wiki/
 │
 ├── docs/                              PRD · TRD · DESIGN · PLAN · LOG
 │
-├── .claude/skills/notion-llm-wiki/
-│   ├── SKILL.md                       진입점. $0 로 sync/ingest/query/lint/publish 분기
-│   ├── references/
-│   │   ├── wiki-schema.md             위키 규칙 (페이지 종류·상한·출처·모순·신선도) — ingest/query 가 먼저 읽는다
-│   │   ├── ingest-procedure.md        변경분 → 위키 갱신 절차
-│   │   ├── query-procedure.md         3층 검색 절차와 답변 형식
-│   │   ├── lint-semantic.md           의미 lint 체크리스트
-│   │   └── notion-authoring.md        실무자용 작성 규약 요약 (DESIGN 1·2절의 사본이 아니라 링크)
-│   └── scripts/
-│       ├── sync.js                    Notion → raw
-│       ├── build-index.js             raw+wiki → wiki/index.md
-│       ├── lint.js                    구조 lint
-│       ├── publish.js                 wiki → Notion (dry-run 기본, --apply)
-│       ├── register-legacy.js         (선택) 카테고리 페이지 하위 일반 페이지 → DB 등록 항목 생성
-│       └── lib/
-│           ├── notion-client.js       fetch 래퍼: 인증·버전·토큰 버킷·429 재시도·페이지네이션
-│           ├── config.js              설정·.env 로드·검증
-│           ├── frontmatter.js         YAML 부분집합 직렬화/파싱
-│           ├── meta.js                Notion properties ↔ frontmatter 매핑
-│           ├── slug.js                파일명 생성
-│           ├── md-notion.js           표준 MD → enhanced MD 정규화, 링크 해석
-│           └── report.js              동기화 리포트 작성
+├── .claude-plugin/marketplace.json    마켓플레이스 `heybit-notion-llm-wiki` — 플러그인 `notion-llm-wiki` → `./plugins/notion-llm-wiki`
+├── .claude/settings.json              이 저장소를 여는 사람에게 위 마켓플레이스·플러그인을 권장 (extraKnownMarketplaces · enabledPlugins)
+│
+├── plugins/notion-llm-wiki/           ★ 플러그인 루트 (설치 id `notion-llm-wiki@heybit-notion-llm-wiki`)
+│   ├── .claude-plugin/plugin.json     name · version(package.json 과 동일) · description · author · repository · license · keywords
+│   ├── README.md                      플러그인 단독 안내(설치·설정·서브커맨드)
+│   └── skills/notion-llm-wiki/        ★ 스킬 — 옛 `.claude/skills/notion-llm-wiki/` 를 그대로 옮긴 것
+│       ├── SKILL.md                   진입점. $0 로 sync/ingest/query/lint/publish 분기. 스크립트는 `${CLAUDE_SKILL_DIR}/scripts/…`
+│       ├── references/
+│       │   ├── wiki-schema.md         위키 규칙 (페이지 종류·상한·출처·모순·신선도) — ingest/query 가 먼저 읽는다
+│       │   ├── ingest-procedure.md    변경분 → 위키 갱신 절차
+│       │   ├── query-procedure.md     3층 검색 절차와 답변 형식
+│       │   ├── lint-semantic.md       의미 lint 체크리스트
+│       │   └── notion-authoring.md    실무자용 작성 규약 요약 (DESIGN 1·2절의 사본이 아니라 링크)
+│       └── scripts/
+│           ├── sync.js                Notion → raw
+│           ├── build-index.js         raw+wiki → wiki/index.md
+│           ├── lint.js                구조 lint
+│           ├── publish.js             wiki → Notion (dry-run 기본, --apply)
+│           ├── register-legacy.js     (선택) 카테고리 페이지 하위 일반 페이지 → DB 등록 항목 생성
+│           └── lib/
+│               ├── notion-client.js   fetch 래퍼: 인증·버전·토큰 버킷·429 재시도·페이지네이션
+│               ├── config.js          설정·.env 로드·검증
+│               ├── frontmatter.js     YAML 부분집합 직렬화/파싱
+│               ├── meta.js            Notion properties ↔ frontmatter 매핑
+│               ├── slug.js            파일명 생성
+│               ├── md-notion.js       표준 MD → enhanced MD 정규화, 링크 해석
+│               └── report.js          동기화 리포트 작성
 │
 ├── raw/                               샘플 미러 (fixture 워크스페이스에서 생성한 golden)
 │   ├── .sync-state.json
@@ -588,3 +621,34 @@ frontmatter 에 기록해 손실을 숨기지 않는다.
 
 **종합.** 단일 스킬 `notion-llm-wiki`, `$0 ∈ {sync, ingest, query, lint, publish}`.
 `ingest`·`query` 는 LLM 절차(references 를 읽고 수행), 나머지는 스크립트 실행 + 결과 해석.
+
+### ADR-009 — 배포 단위는 플러그인 (스킬 복사가 아니라)
+
+**맥락.** P0~P9 의 스킬은 `.claude/skills/` 프로젝트 스킬이었다. 다른 저장소에서 쓰려면 디렉터리를 복사해야 하고, 갱신도 손으로 한다.
+2026-09-10 요청: "claude plugin 으로 설치 가능하게".
+
+**1차 사고.** 저장소 루트를 통째로 플러그인으로 만든다 — 루트에 `.claude-plugin/plugin.json` 과 `skills/` 를 두고 마켓플레이스 `source: "./"`.
+파일 이동이 가장 적다.
+
+**비판적 재사고.**
+- 공격 ①: 설치는 **플러그인 디렉터리 전체를 캐시로 복사**한다(3.3). 루트가 플러그인이면 `raw/`·`wiki/`·`test/`·`docs/` 샘플 수백 KB 가 모든 사용자의
+  캐시에 따라가고, 캐시 안의 샘플 `raw/` 가 스킬이 다루는 프로젝트의 `raw/` 와 이름이 같아 혼동을 부른다. → 플러그인은 **서브디렉터리** `plugins/notion-llm-wiki/`,
+  마켓플레이스는 루트. 문서의 기본 예이고 `--sparse .claude-plugin plugins` 규약과도 맞는다.
+- 공격 ②: 스크립트를 플러그인 루트 `scripts/` 로 올리고 `${CLAUDE_PLUGIN_ROOT}` 를 쓰면, 스킬 디렉터리만 `.claude/skills/` 로 복사하는 옛 방식이 깨진다.
+  문서(skills.md)는 `${CLAUDE_SKILL_DIR}` 가 프로젝트 스킬·플러그인 스킬 모두에서 **본문과 `allowed-tools` 두 곳**에 치환된다고 명시한다.
+  → 스크립트를 **스킬 디렉터리 안에 그대로** 두고 `${CLAUDE_SKILL_DIR}/scripts/…` 로 부른다. 한 디렉터리가 플러그인 스킬로도, 복사한 프로젝트 스킬로도 동작한다.
+  부수 효과: P0 부터 미확정이던 "allowed-tools 치환 여부" 가 문서로 해소되어 상대 경로 `Bash(node .claude/skills/…/*)` 를 버릴 수 있다.
+- 공격 ③: 플러그인 이름과 스킬 이름이 같으면 `/notion-llm-wiki:notion-llm-wiki` 가 된다. 그러나 bare `/notion-llm-wiki` 도 충돌이 없으면 동작하고(3.3),
+  Anthropic 자체 플러그인도 같은 패턴(`frontend-design:frontend-design`)을 쓴다. 스킬 이름을 바꾸면 T16·문서·자동 호출 description 을 모두 바꿔야 하므로 유지.
+- 공격 ④: 스킬을 옮기면 **이 샘플 저장소 자체**가 스킬을 잃는다. → `.claude/settings.json` 의 `extraKnownMarketplaces`+`enabledPlugins` 로 같은 플러그인을 권장하고,
+  플러그인을 고치는 사람은 `claude --plugin-dir plugins/notion-llm-wiki` 로 로컬 사본을 로드한다. 둘을 동시에 켜면 같은 스킬이 두 번 보일 수 있다 — README 에 적는다.
+- 공격 ⑤: SKILL.md 가 `npm run sync` 를 "같은 것" 이라고 안내하는데 `package.json` 은 샘플 저장소에만 있다. 설치한 프로젝트에서는 틀린 안내다.
+  → 정본 경로는 `${CLAUDE_SKILL_DIR}/scripts/…` 하나. `npm run` 은 "이 샘플 저장소에서는" 으로 한정.
+- 공격 ⑥: `references/*.md` 에도 스크립트 경로가 적혀 있는데 거기에는 치환이 없다. → references 는 "SKILL.md 의 스크립트 디렉터리" 로 가리키고 경로를 직접 쓰지 않는다.
+- 공격 ⑦: CI 에서 매니페스트를 검증하려면 러너에 Claude Code CLI 가 필요하다. 저장소 의존성 0 원칙과 충돌하는가? — CLI 는 러너 전역 설치(`npm i -g`)이고 `package.json` 은 그대로다.
+  별도 잡으로 분리해 테스트 잡의 "의존성 0" 검사와 섞지 않는다. 러너에서 인증 없이 `validate` 가 되는지는 **실행해 봐야 안다**.
+
+**종합.** `plugins/notion-llm-wiki/` 서브디렉터리 플러그인 + 루트 `.claude-plugin/marketplace.json`(마켓플레이스 `heybit-notion-llm-wiki`).
+스킬 디렉터리는 내부 구조 그대로 이동, 스크립트 호출은 `${CLAUDE_SKILL_DIR}/scripts/…` 로 본문·`allowed-tools` 를 통일. 설치 id `notion-llm-wiki@heybit-notion-llm-wiki`.
+`plugin.json` 의 `version` 은 `package.json` 과 같게 유지하고(T18 이 검사) 릴리스마다 올린다.
+**미확정**: GitHub 경유 실제 설치·갱신(로컬은 `validate --strict` 와 `--plugin-dir` 로 대체), CI 러너의 CLI 설치.

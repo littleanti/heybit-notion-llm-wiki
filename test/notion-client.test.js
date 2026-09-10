@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createClient, NotionError } = require('../.claude/skills/notion-llm-wiki/scripts/lib/notion-client');
+const { createClient, NotionError } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/notion-client');
 
 function response(status, body, headers = {}) {
   return {

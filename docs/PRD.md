@@ -17,7 +17,7 @@ Notion 에 게시하며, 실무자의 질문에 RAG 없이 답하는 — Claude 
    빨리 찾을 수 있는가 (Notion 데이터베이스 스키마 + 본문 템플릿 + 레거시 페이지 등록 방법).
 2. **LLM wiki 의 구조와 운영 절차** — 원본(raw) / 위키(wiki) / 색인(index) / 이력(log) 의
    계층, 위키 페이지의 종류와 상한, 신선도·모순 처리 규칙.
-3. **동작하는 스킬** — `.claude/skills/notion-llm-wiki/`: Notion→Markdown 동기화,
+3. **동작하는 스킬** — Claude Code 플러그인 `plugins/notion-llm-wiki/`(설치 id `notion-llm-wiki@heybit-notion-llm-wiki`): Notion→Markdown 동기화,
    위키 합성 절차, 질의 절차, lint, Markdown→Notion 게시. 스크립트는 Node.js 로 작성하고
    외부 의존성 0개, Notion 토큰 없이도 fixture 로 전 기능을 테스트할 수 있다.
 
@@ -188,10 +188,12 @@ Notion 에 연결해 쓸 수 있다. 자매 저장소 `heybit-dynamic-sample` �
 
 ### FR7 — 스킬 패키징
 
-- **FR7.1** `.claude/skills/notion-llm-wiki/SKILL.md` 하나로 `sync`/`ingest`/`query`/`lint`/`publish`
+- **FR7.1** `plugins/notion-llm-wiki/skills/notion-llm-wiki/SKILL.md` 하나로 `sync`/`ingest`/`query`/`lint`/`publish`
   를 인자로 분기한다. 절차·규칙의 상세는 `references/` 로 나눠 필요할 때만 읽게 한다.
 - **FR7.2** 이 저장소를 clone 하면 그대로 위키 작업 공간이 된다 (`raw/`, `wiki/`, 설정 파일,
-  스킬). 다른 저장소에서 쓰려면 스킬 디렉터리를 복사하고 설정 파일을 채운다.
+  스킬). 다른 저장소에서 쓰려면 **플러그인으로 설치**하고(`claude plugin marketplace add littleanti/heybit-notion-llm-wiki` →
+  `claude plugin install notion-llm-wiki@heybit-notion-llm-wiki`) 설정 파일을 채운다. 스킬 디렉터리를 `.claude/skills/` 로 복사하는 옛 방식도
+  계속 동작한다(스크립트 경로가 `${CLAUDE_SKILL_DIR}` 기준이라 위치에 무관). — 2026-09-10 추가
 - **FR7.3** 스크립트는 Node.js 22+ 내장 기능만 쓴다 (`fetch`, `node:test`, `node:fs`).
   `npm install` 이 필요 없다.
 

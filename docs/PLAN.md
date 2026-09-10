@@ -36,6 +36,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P7 | CI (Node 22·24) + `register-legacy.js`(선택) | 워크플로 파싱 · 단위 테스트 | `완료` |
 | P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `완료` |
 | P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `완료` |
+| P10 | **Claude Code 플러그인 패키징** — 스킬을 `plugins/notion-llm-wiki/skills/` 로 옮기고 marketplace 등록, `${CLAUDE_SKILL_DIR}` 경로화 | `claude plugin validate --strict` · `--plugin-dir` 로 로드 · `npm test` · CI | `완료` |
 
 ---
 
@@ -191,6 +192,29 @@ push 전 확인: `.env` 미포함, `raw/`·fixture 에 실제 정보 없음(가�
 
 ---
 
+## P10 — Claude Code 플러그인 패키징
+
+**배경**: 스킬이 `.claude/skills/` 프로젝트 스킬로만 존재해, 다른 저장소에서 쓰려면 디렉터리를 복사해야 했다.
+사용자 요청(2026-09-10): "이 스킬 claude plugin 으로 설치 가능하게". 결정 근거는 [TRD ADR-009](./TRD.md#adr-009--배포-단위는-플러그인-스킬-복사가-아니라).
+
+**작업**
+- `plugins/notion-llm-wiki/` (플러그인 루트) — `.claude-plugin/plugin.json`, `skills/notion-llm-wiki/{SKILL.md, references/, scripts/}` (기존 스킬 디렉터리를 **그대로** 이동 — 스크립트는 스킬 디렉터리 안에 남긴다, ADR-009)
+- 저장소 루트 `.claude-plugin/marketplace.json` — 마켓플레이스 `heybit-notion-llm-wiki`, 플러그인 `notion-llm-wiki`, `source: ./plugins/notion-llm-wiki`
+- `SKILL.md` — 스크립트 경로를 `${CLAUDE_SKILL_DIR}/scripts/…` 로(본문·`allowed-tools` 양쪽 — 공식 문서가 두 곳 모두 치환한다고 명시). `npm run …` 은 샘플 저장소 한정으로 표기
+- `.claude/skills/notion-llm-wiki/` 제거(중복 방지). 샘플 저장소 자체는 `.claude/settings.json` 의 `extraKnownMarketplaces`+`enabledPlugins` 로 같은 플러그인을 권장하고, 개발 중에는 `claude --plugin-dir plugins/notion-llm-wiki`
+- 경로 참조 갱신 — `package.json` scripts, `test/*.test.js`·`test/helpers/*`, `.github/workflows/ci.yml`, `README.md`, `docs/PRD.md` FR7, `docs/TRD.md` 3.2·3.3·4절
+- `test/plugin.test.js`(T18) — plugin.json·marketplace.json·settings.json 의 이름·버전·경로 정합성
+- CI 에 `claude plugin validate --strict` 잡 추가 (Claude Code CLI 를 러너에 설치. 저장소 의존성은 여전히 0)
+
+**출구 조건**: `claude plugin validate --strict` 통과(플러그인·마켓플레이스 둘 다), `claude --plugin-dir` 로 로드한 세션에서 스킬이 보임, `npm test` 전부 통과, `npm run lint` 오류 0, CI 통과. → 커밋 13
+
+**상태: `완료`** (로컬 검증 2026-09-10) — `claude plugin validate --strict` 플러그인·마켓플레이스 둘 다 통과(CLI 2.1.267).
+`claude --plugin-dir plugins/notion-llm-wiki -p "/notion-llm-wiki:notion-llm-wiki"` 로 헤드리스 세션을 띄우자 스킬이 로드되고 `$0` 분기가 사용법 표를 출력했다.
+`npm test` **69/69**(T18 5건 추가), `npm run lint` 오류 0, 색인 재생성 diff 없음. `wiki/log.md` 의 경로 문구를 바꾸면서 게시 골든(`publish-plan.json`)의 log.md 해시가 바뀌어 골든을 재생성했다.
+CI(plugin 잡)와 GitHub 경유 실제 설치는 push 뒤 확인 — [LOG](./LOG.md) P10.
+
+---
+
 ## 리스크 대응 (사전 식별)
 
 | 리스크 | 대응 | 결과 |
@@ -199,5 +223,5 @@ push 전 확인: `.env` 미포함, `raw/`·fixture 에 실제 정보 없음(가�
 | enhanced markdown 정규화가 실제 렌더와 다를 수 있음 | 순수 함수 + 골든으로 규칙을 고정, 실측 시 골든만 갱신하면 되게 | — |
 | YAML 부분집합 파서가 실제 값(따옴표·콜론)에서 깨짐 | T1 에 한국어·특수문자 케이스 포함 | — |
 | 샘플 콘텐츠 작성 분량(약 30페이지)이 일정을 잠식 | 페이지당 300~600자, 템플릿 골격 재사용. 위키 합성 재료(충돌·미확정)에 집중 | — |
-| 스킬 `allowed-tools` 에서 변수 치환 불확실 | 프로젝트 상대 경로 사용, README 에 권한 프롬프트 가능성 명시 | — |
+| 스킬 `allowed-tools` 에서 변수 치환 불확실 | 프로젝트 상대 경로 사용, README 에 권한 프롬프트 가능성 명시 | P10 에서 해소 — 공식 문서(skills.md)가 `${CLAUDE_SKILL_DIR}` 를 본문·`allowed-tools` 두 곳에서 치환한다고 명시. 플러그인 전환 시 이 변수로 통일 |
 | Windows 경로·개행이 골든 비교를 깨뜨림 | 스크립트가 항상 `/` 와 `\n` 으로 쓰고, 비교 전 정규화. `.gitattributes` 로 `* text=auto eol=lf` | — |

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const cfgLib = require('../.claude/skills/notion-llm-wiki/scripts/lib/config');
+const cfgLib = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
 
 const root = path.resolve(__dirname, '..');
 const base = JSON.parse(fs.readFileSync(path.join(root, 'notion-wiki.config.json'), 'utf8'));

@@ -10,6 +10,45 @@
 
 ---
 
+## 2026-09-10
+
+### `[feat]` P10 — Claude Code 플러그인 패키징 · 상태: `완료` (로컬 검증 · CI 는 push 후 확인)
+
+**요청**: "이 스킬 claude plugin 으로 설치 가능하게 수정해줘." (2026-09-10)
+
+**내용**: 스킬 디렉터리를 `.claude/skills/notion-llm-wiki/` → `plugins/notion-llm-wiki/skills/notion-llm-wiki/` 로 **내부 구조 그대로** 옮기고(git rename 19개),
+플러그인 매니페스트와 저장소 루트 마켓플레이스를 추가했다. 설치 id `notion-llm-wiki@heybit-notion-llm-wiki`.
+설치: `claude plugin marketplace add littleanti/heybit-notion-llm-wiki` → `claude plugin install notion-llm-wiki@heybit-notion-llm-wiki`.
+결정 기록 [TRD ADR-009](./TRD.md#adr-009--배포-단위는-플러그인-스킬-복사가-아니라), 확인한 규약 [TRD 3.3](./TRD.md#33-claude-code-플러그인-규약--문서로-확인한-사실-2026-09-10).
+
+**3단 사고에서 뒤집힌 것**
+- 1차: 저장소 루트를 통째로 플러그인으로(`source: "./"`). → 설치가 플러그인 디렉터리 **전체를 캐시로 복사**한다는 문서 사실에 막혔다 — 샘플 `raw/`·`wiki/`·`test/` 가 모든 사용자 캐시에 실려 간다. 서브디렉터리 플러그인으로.
+- 1차: 스크립트를 플러그인 루트 `scripts/` 로 올리고 `${CLAUDE_PLUGIN_ROOT}`. → skills.md 가 **`${CLAUDE_SKILL_DIR}` 를 본문과 `allowed-tools` 두 곳에서 치환**한다고 명시. 스크립트를 스킬 디렉터리 안에 두면 플러그인으로도, `.claude/skills/` 복사본으로도 같은 SKILL.md 가 동작한다. 이쪽을 택했다.
+  P0 부터 미확정이던 "allowed-tools 치환 여부" 가 함께 해소됐고, 그래서 `Bash(node .claude/skills/…/*)` 상대 경로 규칙과 `Bash(npm run *)`·`Bash(npm test)` 를 `allowed-tools` 에서 뺐다(권한 표면 축소).
+- 보조 조사 결과 하나는 문서와 어긋났다: 조사 보고는 "allowed-tools 에서는 변수가 치환되지 않는다" 였으나 skills.md 원문은 반대였다. **원문을 직접 읽어 확인**하고 원문을 따랐다.
+
+**변경 파일**
+- 이동: `plugins/notion-llm-wiki/skills/notion-llm-wiki/{SKILL.md, references/*, scripts/**}` (내용은 SKILL.md·ingest-procedure·lint-semantic 의 경로 문구만 변경)
+- 신규: `plugins/notion-llm-wiki/.claude-plugin/plugin.json`, `plugins/notion-llm-wiki/README.md`, `.claude-plugin/marketplace.json`, `.claude/settings.json`(extraKnownMarketplaces·enabledPlugins), `test/plugin.test.js`(T18 5건)
+- `SKILL.md`: `allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*) Read Grep Glob Write Edit`, 본문 스크립트 호출 7곳을 `${CLAUDE_SKILL_DIR}/scripts/…` 로, "`npm run` 은 샘플 저장소 안에서만" 명시, 설정 파일 없을 때의 안내 추가
+- `references/ingest-procedure.md`·`lint-semantic.md`: 경로 직접 표기 → "SKILL.md 의 스크립트 디렉터리" (references 에는 치환이 적용되지 않는다)
+- `package.json` scripts, `test/*.test.js`·`test/helpers/*` require 경로, `test/skill.test.js` allowed-tools 검사, `test/golden/publish-plan.json`(log.md 해시), `wiki/log.md` 4행 경로 문구
+- `.github/workflows/ci.yml`: 색인 확인 단계 경로 + **`plugin` 잡 추가**(러너에 CLI 전역 설치 → `validate --strict` 플러그인·마켓플레이스 → T18)
+- 문서: `README.md`(설치 두 갈래·구조·한계·문서 표), `docs/PRD.md` FR7.1·7.2, `docs/TRD.md` 3.2 정정·3.3 신설·4절·ADR-009, `docs/PLAN.md` P10
+
+**검증 (2026-09-10, 로컬)**
+- `claude plugin validate --strict plugins/notion-llm-wiki` ✔ · `claude plugin validate --strict .` ✔ (CLI 2.1.267)
+- `claude --plugin-dir plugins/notion-llm-wiki -p "/notion-llm-wiki:notion-llm-wiki" --max-turns 1` → 스킬이 로드되어 `$0` 없음 → **사용법 표 출력** (실제 로드 확인). bare `/notion-llm-wiki` 는 print 모드에서 스킬 호출로 해석되지 않았다 — 대화형 동작은 미실측.
+- `npm test` **69/69** (64 + T18 5). 첫 실행에서 2건이 실패했다: (1) `wiki/log.md` 경로 문구 변경으로 게시 골든의 log.md 해시 불일치 → 골든 재생성. (2) T18 이 SKILL.md 의 "`.claude/skills/` 에 복사했든" 이라는 **설명 문장**을 옛 경로 잔존으로 오판 → 검사를 스크립트 경로 문자열로 좁혔다.
+- `npm run lint` 오류 0(경고 4 — 샘플에 심어 둔 것), `build-index` 재실행 diff 없음, CI YAML 파싱(jobs: test·plugin).
+
+**미확정**
+- GitHub 경유 실제 설치(`marketplace add` → `install` → 캐시 복사)·`plugin update` — push 뒤에야 확인 가능.
+- CI `plugin` 잡: 러너에서 `npm i -g @anthropic-ai/claude-code` 와 인증 없는 `validate` — 첫 실행이 답한다.
+- 이 샘플 저장소를 열 때 `.claude/settings.json` 의 설치 제안이 어떻게 보이는지(대화형 UI) 는 미실측.
+
+---
+
 ## 2026-09-09
 
 ### `[chore]` P9 — GitHub public 저장소 생성 · push · CI 확인 · 상태: `완료`

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { REPO_ROOT, syncOnce, listFiles } = require('./helpers/sync-harness');
 const { loadWorkspace, createMockNotion, pageUrl } = require('./helpers/mock-notion');
-const fm = require('../.claude/skills/notion-llm-wiki/scripts/lib/frontmatter');
+const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/frontmatter');
 
 const ID = {
   refundLegal: '55555555-0001-4005-8000-000000000001',

@@ -3,8 +3,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { REPO_ROOT, makeClient } = require('./helpers/sync-harness');
 const { loadWorkspace, createMockNotion, pageUrl } = require('./helpers/mock-notion');
-const { loadConfig } = require('../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const { runRegisterLegacy } = require('../.claude/skills/notion-llm-wiki/scripts/register-legacy');
+const { loadConfig } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const { runRegisterLegacy } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/register-legacy');
 
 const cfg = loadConfig(REPO_ROOT);
 const UNREGISTERED_CS = '66666666-0001-4004-8000-000000000001';

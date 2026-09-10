@@ -9,10 +9,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "sync": "node .claude/skills/notion-llm-wiki/scripts/sync.js",
-    "index": "node .claude/skills/notion-llm-wiki/scripts/build-index.js",
-    "lint": "node .claude/skills/notion-llm-wiki/scripts/lint.js",
-    "publish:wiki": "node .claude/skills/notion-llm-wiki/scripts/publish.js",
+    "sync": "node plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/sync.js",
+    "index": "node plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/build-index.js",
+    "lint": "node plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lint.js",
+    "publish:wiki": "node plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/publish.js",
     "test": "node --test \"test/*.test.js\""
   }
 }

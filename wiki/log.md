@@ -1,7 +1,7 @@
 # 변경 이력 (wiki/log.md)
 
 스킬이 `ingest` 마다 끝에 덧붙인다 (append-only). 색인은 "무엇이 있는가", 이 파일은 "왜 그렇게 썼는가" 다.
-형식: `.claude/skills/notion-llm-wiki/references/wiki-schema.md` 7절.
+형식: `plugins/notion-llm-wiki/skills/notion-llm-wiki/references/wiki-schema.md` 7절.
 
 ## 2026-09-09 · ingest --full · 전체 재합성 (raw 33 → wiki 24)
 

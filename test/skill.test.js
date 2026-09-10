@@ -3,9 +3,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const fm = require('../.claude/skills/notion-llm-wiki/scripts/lib/frontmatter');
+const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/frontmatter');
 
-const SKILL_DIR = path.resolve(__dirname, '..', '.claude', 'skills', 'notion-llm-wiki');
+const SKILL_DIR = path.resolve(__dirname, '..', 'plugins', 'notion-llm-wiki', 'skills', 'notion-llm-wiki');
 const SKILL = fs.readFileSync(path.join(SKILL_DIR, 'SKILL.md'), 'utf8');
 const { data, body } = fm.split(SKILL);
 const SUBCOMMANDS = ['sync', 'ingest', 'query', 'lint', 'publish'];
@@ -16,7 +16,7 @@ test('T16 skill: frontmatter — name · description(5개 동작 언급) · argu
   for (const s of SUBCOMMANDS) assert.ok(data.description.includes(`(${s})`), `description 에 (${s}) 없음`);
   assert.ok(((data.description || '') + (data.when_to_use || '')).length <= 1536, 'description+when_to_use 1,536자 이내');
   assert.match(data['argument-hint'], /sync\|ingest\|query\|lint\|publish/);
-  assert.match(data['allowed-tools'], /Bash\(node \.claude\/skills\/notion-llm-wiki\/scripts\/\*\)/);
+  assert.ok(String(data['allowed-tools']).includes('Bash(node ${CLAUDE_SKILL_DIR}/scripts/*)'), '번들 스크립트 규칙은 ${CLAUDE_SKILL_DIR} 로 (본문과 같은 변수 — 권한 프롬프트 없이 실행)');
   assert.equal(String(data['allowed-tools']).includes('Bash(*)'), false, '전체 Bash 를 열지 않는다');
 });
 

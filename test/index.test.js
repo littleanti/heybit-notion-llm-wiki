@@ -4,8 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { REPO_ROOT, FIXED_NOW } = require('./helpers/sync-harness');
-const { loadConfig } = require('../.claude/skills/notion-llm-wiki/scripts/lib/config');
-const { buildIndex } = require('../.claude/skills/notion-llm-wiki/scripts/build-index');
+const { loadConfig } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/config');
+const { buildIndex } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/build-index');
 
 const cfg = loadConfig(REPO_ROOT);
 const GOLDEN = path.join(REPO_ROOT, 'test', 'golden', 'index.md');

@@ -46,8 +46,8 @@
 ## 4. 색인·lint
 
 ```
-node .claude/skills/notion-llm-wiki/scripts/build-index.js
-node .claude/skills/notion-llm-wiki/scripts/lint.js
+node <스크립트 디렉터리>/build-index.js      # <스크립트 디렉터리> = SKILL.md 상단의 `${CLAUDE_SKILL_DIR}/scripts` (치환된 절대 경로)
+node <스크립트 디렉터리>/lint.js
 ```
 
 - **오류(E) 가 0 이 될 때까지** 위키 쪽을 고친다. `source-missing` 은 대개 출처 링크가 빠진 섹션이나 `sources` 경로 오타다.

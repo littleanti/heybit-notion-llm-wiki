@@ -1,0 +1,27 @@
+{
+  "name": "heybit-notion-llm-wiki",
+  "owner": {
+    "name": "Wondeuk Yoon",
+    "url": "https://github.com/littleanti"
+  },
+  "metadata": {
+    "description": "heybit 샘플 — Notion 실무 문서를 Claude Code 가 LLM wiki 로 합성하고 다시 Notion 에 게시하는 스킬",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "notion-llm-wiki",
+      "source": "./plugins/notion-llm-wiki",
+      "description": "Notion → raw/ 미러 동기화, LLM wiki 합성·질의·lint, wiki → Notion 게시. 서브커맨드 sync · ingest · query · lint · publish",
+      "author": {
+        "name": "Wondeuk Yoon",
+        "url": "https://github.com/littleanti"
+      },
+      "homepage": "https://github.com/littleanti/heybit-notion-llm-wiki",
+      "repository": "https://github.com/littleanti/heybit-notion-llm-wiki",
+      "license": "MIT",
+      "keywords": ["notion", "wiki", "llm-wiki", "knowledge-base", "markdown", "korean"],
+      "category": "productivity"
+    }
+  ]
+}
