@@ -144,7 +144,13 @@
 - **실측(2026-09-10, CLI 2.1.267)**: `claude plugin validate --strict` 가 `plugins/notion-llm-wiki`(플러그인)와 `.`(마켓플레이스) 모두 통과.
   `claude --plugin-dir plugins/notion-llm-wiki -p "/notion-llm-wiki:notion-llm-wiki" --max-turns 1` 로 띄운 헤드리스 세션에서 스킬이 로드되어 `$0` 분기의 사용법 표가 출력됐다
   (print 모드에서 bare `/notion-llm-wiki` 는 스킬 호출로 해석되지 않았다 — 대화형에서의 동작은 미실측). `claude plugin details` 는 설치된 플러그인만 받는다(`--plugin-dir` 미지원).
-- 실측하지 않은 것: GitHub 경유 실제 설치(캐시 복사·갱신) — 이 저장소를 public 으로 푸시한 뒤 `marketplace add` 로 확인할 수 있다. **미확정**으로 남긴다.
+- **실측(push 후, 같은 날)**: `marketplace add littleanti/heybit-notion-llm-wiki` → `install notion-llm-wiki@heybit-notion-llm-wiki` 성공. 캐시 `~/.claude/plugins/cache/<mk>/<plugin>/0.1.0/` 에
+  플러그인 디렉터리의 **21개 파일만** 복사됐다. CI 러너(ubuntu)에서 `npm i -g @anthropic-ai/claude-code` 후 인증 없이 `validate --strict` 동작.
+- **권한 규칙의 실제 동작**: `allowed-tools` 의 `Bash(node ${CLAUDE_SKILL_DIR}/scripts/*)` 는 치환 후 **접두 일치**다. 모델이 경로를 따옴표로 감싸거나 `cd … &&` 로 묶으면
+  일치하지 않아 승인 대상이 된다(비대화형에서는 거부). 대응: 따옴표 변형 규칙을 함께 두고, SKILL.md 가 "글자 그대로·단독 명령" 을 지시한다. 그렇게 하자 헤드리스 실행에서 거부 0건.
+- **부작용**: `claude plugin uninstall` / `marketplace remove` 가 현재 디렉터리의 프로젝트 `.claude/settings.json` 에 있는 `enabledPlugins`·`extraKnownMarketplaces` 를
+  빈 객체로 덮어썼다(CLI 2.1.267). 팀 권장 선언을 둔 저장소에서는 되돌린 뒤 `git diff` 를 확인해야 한다.
+- 미실측: 대화형 세션의 bare `/notion-llm-wiki` 해석, `.claude/settings.json` 설치 제안 UI, `plugin update`(릴리스 전), 홈 경로에 공백이 있을 때의 `allowed-tools` 분리.
 
 ## 4. 저장소 구조
 

@@ -218,7 +218,8 @@ CI(`.github/workflows/ci.yml`)는 Node **22·24** 에서 같은 테스트를 돌
 | **권한(ACL)** | 범위 밖 | 위키 독자 = 동기화 범위 열람자 단일 집단을 가정한다. 권한이 다른 페이지는 `민감` 으로 표시해 빼는 것이 유일한 수단 |
 | **코멘트 수집** | 범위 밖 | 위키 페이지에 달린 정정 요청 코멘트를 자동으로 읽어 오지 않는다. 블록 교체 시 페이지 코멘트가 유지되는지도 **미실측** |
 | **Notion 파일 URL** | 알려진 한계 | 1시간 후 만료된다. 미러는 URL 만 두고 주석으로 명시한다 |
-| **플러그인 GitHub 경유 설치** | 미실측 | 로컬에서 `claude plugin validate --strict` 와 `--plugin-dir` 로드는 확인했다. `marketplace add` → `install` 로 캐시에 복사되는 실제 설치·갱신은 push 뒤 확인할 일이다 ([TRD 3.3](./docs/TRD.md#33-claude-code-플러그인-규약--문서로-확인한-사실-2026-09-10)) |
+| **플러그인 uninstall 의 부작용** | 실측 | `claude plugin uninstall`·`marketplace remove` 가 프로젝트 `.claude/settings.json` 의 `enabledPlugins`·`extraKnownMarketplaces` 를 빈 객체로 덮어썼다(CLI 2.1.267). 되돌리려면 `git checkout -- .claude/settings.json`. 설치 자체는 실측 완료 — 캐시에 플러그인 파일 21개만 복사된다 ([TRD 3.3](./docs/TRD.md#33-claude-code-플러그인-규약--문서로-확인한-사실-2026-09-10)) |
+| **스킬 스크립트의 권한 사전 승인** | 실측·주의 | 규칙은 `node <스킬 경로>/scripts/…` 로 시작하는 **단독 명령**에만 걸린다. SKILL.md 가 따옴표·`cd &&` 를 쓰지 말라고 지시하며, 지시대로 실행될 때 승인 프롬프트가 없다. 홈 경로에 공백이 있으면 규칙이 쪼개질 수 있다(미실측) |
 
 ## 9. 문서
 

@@ -12,7 +12,7 @@
 
 ## 2026-09-10
 
-### `[feat]` P10 — Claude Code 플러그인 패키징 · 상태: `완료` (로컬 검증 · CI 는 push 후 확인)
+### `[feat]` P10 — Claude Code 플러그인 패키징 · 상태: `완료`
 
 **요청**: "이 스킬 claude plugin 으로 설치 가능하게 수정해줘." (2026-09-10)
 
@@ -42,10 +42,30 @@
 - `npm test` **69/69** (64 + T18 5). 첫 실행에서 2건이 실패했다: (1) `wiki/log.md` 경로 문구 변경으로 게시 골든의 log.md 해시 불일치 → 골든 재생성. (2) T18 이 SKILL.md 의 "`.claude/skills/` 에 복사했든" 이라는 **설명 문장**을 옛 경로 잔존으로 오판 → 검사를 스크립트 경로 문자열로 좁혔다.
 - `npm run lint` 오류 0(경고 4 — 샘플에 심어 둔 것), `build-index` 재실행 diff 없음, CI YAML 파싱(jobs: test·plugin).
 
-**미확정**
-- GitHub 경유 실제 설치(`marketplace add` → `install` → 캐시 복사)·`plugin update` — push 뒤에야 확인 가능.
-- CI `plugin` 잡: 러너에서 `npm i -g @anthropic-ai/claude-code` 와 인증 없는 `validate` — 첫 실행이 답한다.
-- 이 샘플 저장소를 열 때 `.claude/settings.json` 의 설치 제안이 어떻게 보이는지(대화형 UI) 는 미실측.
+**push 후 실측 (2026-09-10, 커밋 138f4cd)**
+- **CI run 34457349321 — 3 잡 전부 통과**: test(Node 22) · test(Node 24) · plugin. plugin 잡은 러너에서 `npm i -g @anthropic-ai/claude-code` 로 CLI 를 설치한 뒤 인증 없이
+  `validate --strict` 두 번(플러그인·마켓플레이스)과 T18 을 통과했다(잡 소요 약 10초). P10 의 두 미확정("CI 러너의 CLI 설치", "인증 없는 validate")이 해소됐다.
+- **GitHub 경유 실제 설치 성공**: `claude plugin marketplace add littleanti/heybit-notion-llm-wiki`(SSH clone) → `claude plugin install notion-llm-wiki@heybit-notion-llm-wiki`
+  → `~/.claude/plugins/cache/heybit-notion-llm-wiki/notion-llm-wiki/0.1.0/` 에 **플러그인 디렉터리의 21개 파일만** 복사됐다(샘플 `raw/`·`wiki/`·`test/` 없음 — ADR-009 공격 ① 의 판단대로).
+  `claude plugin details`: 상시 비용 약 260 토큰, 호출 시 약 3.5k.
+- **설치본으로 `lint` 를 헤드리스 실행하자 권한에서 막혔다 — `[fix]` 완료**: 본문의 `${CLAUDE_SKILL_DIR}` 는 캐시 절대 경로로 치환됐지만, 모델이
+  `cd "<프로젝트>" && node "<경로>/lint.js"` 처럼 **경로를 따옴표로 감싸고 `cd` 와 묶어** 실행했다. 권한 규칙 `Bash(node <경로>/scripts/*)` 는 접두 일치라 따옴표 한 글자에도
+  어긋나고, 복합 명령은 "multiple operations" 로 승인 대상이 된다. 비대화형이라 4회 모두 거부 → max turns.
+  수정: (1) `allowed-tools` 에 따옴표 변형 `Bash(node "${CLAUDE_SKILL_DIR}/scripts/*)` 추가, (2) SKILL.md 에 **실행 규칙** 명시 — `cd` 금지, `&&`·`;`·`|` 로 묶지 않기,
+  따옴표 없이 글자 그대로, 현재 디렉터리가 이미 프로젝트 루트, `--root` 는 뒤에.
+  재실측(`--plugin-dir` 로컬 사본, 헤드리스 `lint`): Glob 로 설정 파일 확인 → `node D:/…/scripts/lint.js` 단독·무따옴표 실행 → **거부 0건**, lint 결과 보고까지 3턴.
+  "`${CLAUDE_SKILL_DIR}` 는 본문과 `allowed-tools` 두 곳에서 치환된다" 는 문서 사실이 **실행으로 확인**됐다. `npm test` 69/69 · `validate --strict` 통과 유지.
+- **부작용 발견**: 검증 설치를 되돌리는 `claude plugin uninstall` + `claude plugin marketplace remove`(사용자 스코프)가 **프로젝트 `.claude/settings.json` 의
+  `enabledPlugins`·`extraKnownMarketplaces` 를 빈 객체로 덮어썼다**. `git checkout -- .claude/settings.json` 으로 복구. README 8절에 주의로 적었다.
+- 검증 설치는 되돌려 사용자 환경을 요청 전 상태로 두었다(캐시에는 CLI 가 `.orphaned_at` 표시를 남겨 스스로 정리한다). 실제 설치 명령 두 줄은 README 5.1.
+
+> 교훈: "치환된다" 는 문서 사실과 "권한 프롬프트 없이 실행된다" 는 결과 사이에 **모델의 표기 습관**(따옴표·`cd &&`)이 끼어 있었다. 규칙을 맞추는 것으로 끝나지 않고
+> 스킬이 모델에게 표기까지 지시해야 했다. 설치본으로 한 번 실행해 보지 않았으면 배포 뒤에 사용자가 겪었을 결함이다.
+
+**남은 미확정**
+- 대화형 세션에서 bare `/notion-llm-wiki` 가 스킬로 잡히는지(print 모드에서는 `/notion-llm-wiki:notion-llm-wiki` 만 동작) 와 `.claude/settings.json` 의 설치 제안 UI — 미실측.
+- `claude plugin update` 갱신 경로 — 버전을 올린 릴리스가 아직 없다.
+- 홈 경로에 공백이 있는 사용자: 공백 구분 `allowed-tools` 문자열이 규칙을 쪼갤 수 있다 — 미실측. 발생하면 YAML 리스트 형식이 대안.
 
 ---
 

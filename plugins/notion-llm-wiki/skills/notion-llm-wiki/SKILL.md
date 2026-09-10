@@ -2,7 +2,7 @@
 name: notion-llm-wiki
 description: Notion 실무 문서를 로컬 raw/ 미러로 동기화(sync)하고, 변경분을 읽어 LLM wiki 를 합성(ingest)하고, 위키에서 질문에 출처를 달아 답하고(query), 구조·의미 lint 를 돌리고(lint), 위키를 Notion 에 게시(publish)한다. "위키 동기화해", "노션에서 ~ 찾아줘/검색해", "위키 갱신/합성해", "위키 게시해", "위키 점검해" 같은 요청에 쓴다. RAG·임베딩 없이 색인 → 위키 → 원문 grep 순서로 찾는다.
 argument-hint: "<sync|ingest|query|lint|publish> [--full | --apply | 질문]"
-allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*) Read Grep Glob Write Edit
+allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*) Bash(node "${CLAUDE_SKILL_DIR}/scripts/*) Read Grep Glob Write Edit
 ---
 
 # notion-llm-wiki
@@ -22,10 +22,16 @@ Notion(원본) → `raw/`(미러) → `wiki/`(합성) → Notion(게시) 의 한
 | `publish` | `wiki/` → Notion 위키 루트 아래 게시 (dry-run 기본) | 스크립트 | `--apply` 시 `NOTION_TOKEN` |
 
 스크립트 디렉터리는 `${CLAUDE_SKILL_DIR}/scripts` 다 (Claude Code 가 이 스킬의 절대 경로로 치환한다 — 플러그인으로 설치했든
-`.claude/skills/` 에 복사했든 같다). 스크립트는 항상 **위키 프로젝트 루트**(`notion-wiki.config.json` 이 있는 디렉터리)에서 실행한다:
-`node ${CLAUDE_SKILL_DIR}/scripts/<이름>.js`. 다른 디렉터리에서 부를 때는 `--root <프로젝트>` 를 붙인다.
-`notion-wiki.config.json` 이 없으면 만들라고 안내하고 멈춘다 — 이 샘플 저장소의 것을 복사해 id 만 바꾸면 된다.
-(샘플 저장소 heybit-notion-llm-wiki 안에서만 `npm run sync|index|lint|publish:wiki` 도 같은 스크립트를 부른다.)
+`.claude/skills/` 에 복사했든 같다). 스크립트는 **위키 프로젝트 루트**(`notion-wiki.config.json` 이 있는 디렉터리)를 작업 공간으로 삼는데,
+그 디렉터리는 곧 Claude Code 의 현재 작업 디렉터리다.
+
+**실행 규칙 — 아래 명령을 글자 그대로 실행한다.**
+- `cd … &&` 를 붙이지 않는다. 다른 명령과 `&&`·`;`·`|` 로 묶지 않는다. 경로를 따옴표로 감싸지 않는다.
+  (이 스킬의 권한 사전 승인은 `node ${CLAUDE_SKILL_DIR}/scripts/…` 로 **시작하는 단독 명령**에만 걸린다. 복합 명령이나 다른 표기는 승인 프롬프트를 만들고,
+  비대화형 실행에서는 거부된다.)
+- 다른 디렉터리를 대상으로 할 때만 옵션 `--root <프로젝트 디렉터리>` 를 **뒤에** 붙인다.
+- `notion-wiki.config.json` 이 없으면 만들라고 안내하고 멈춘다 — 샘플 저장소 heybit-notion-llm-wiki 의 것을 복사해 id 만 바꾸면 된다.
+- `npm run sync|index|lint|publish:wiki` 는 샘플 저장소 안에서만 존재한다. 이 스킬은 항상 위의 `node` 명령을 쓴다.
 
 ## 절대 규칙 (모든 서브커맨드 공통)
 

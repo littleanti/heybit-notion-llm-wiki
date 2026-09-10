@@ -208,10 +208,11 @@ push 전 확인: `.env` 미포함, `raw/`·fixture 에 실제 정보 없음(가�
 
 **출구 조건**: `claude plugin validate --strict` 통과(플러그인·마켓플레이스 둘 다), `claude --plugin-dir` 로 로드한 세션에서 스킬이 보임, `npm test` 전부 통과, `npm run lint` 오류 0, CI 통과. → 커밋 13
 
-**상태: `완료`** (로컬 검증 2026-09-10) — `claude plugin validate --strict` 플러그인·마켓플레이스 둘 다 통과(CLI 2.1.267).
+**상태: `완료`** (2026-09-10) — `claude plugin validate --strict` 플러그인·마켓플레이스 둘 다 통과(CLI 2.1.267).
 `claude --plugin-dir plugins/notion-llm-wiki -p "/notion-llm-wiki:notion-llm-wiki"` 로 헤드리스 세션을 띄우자 스킬이 로드되고 `$0` 분기가 사용법 표를 출력했다.
 `npm test` **69/69**(T18 5건 추가), `npm run lint` 오류 0, 색인 재생성 diff 없음. `wiki/log.md` 의 경로 문구를 바꾸면서 게시 골든(`publish-plan.json`)의 log.md 해시가 바뀌어 골든을 재생성했다.
-CI(plugin 잡)와 GitHub 경유 실제 설치는 push 뒤 확인 — [LOG](./LOG.md) P10.
+push 후: **CI run 34457349321 3 잡(test 22·24, plugin) 통과**, **GitHub 경유 설치 실측**(캐시에 플러그인 파일 21개만). 설치본으로 `lint` 를 헤드리스 실행해
+권한 거부 결함(따옴표·`cd &&` 로 접두 규칙 불일치)을 발견 → `allowed-tools` 따옴표 변형 + SKILL.md 실행 규칙으로 고쳐 재실측 거부 0건 — [LOG](./LOG.md) P10.
 
 ---
 
