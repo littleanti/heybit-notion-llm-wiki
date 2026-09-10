@@ -3,8 +3,10 @@
 // 실 Notion 렌더는 미실측이다. 규칙이 틀렸다면 골든도 함께 틀리다는 한계를 문서에 남겼다.
 
 const ESCAPE_RE = /[<>{}$^|[\]]/g;
-// Notion 페이지 URL (32자리 16진수 id 를 담은 notion.so / notion.site 주소)
-const NOTION_URL_RE = /^https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site)\/[^\s)]*[0-9a-fA-F]{32}/;
+// Notion 페이지 URL (32자리 16진수 id 를 담은 주소).
+// 호스트는 세 가지를 받는다 — **현재 Notion 의 "링크 복사" 는 `app.notion.com/p/<id>` 를 준다** (2026-09-10 실측).
+// notion.so 만 보던 정규식 때문에 실제 URL 이 멘션으로 바뀌지 않는 결함이 있었다.
+const NOTION_URL_RE = /^https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site|com)\/[^\s)]*[0-9a-fA-F]{32}/;
 
 function escapeText(s) {
   // 텍스트 런: 태그·괄호·수식·표 구분자·대괄호를 이스케이프. `*`·`_`·`` ` `` 는 마크다운 서식이므로 둔다.

@@ -8,6 +8,26 @@ const fm = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/li
 
 const GOLDEN_DIR = path.join(__dirname, 'golden');
 
+test('T11 md-notion: mentionLinks — 실제 Notion URL(app.notion.com) 도 멘션으로 바꾼다 (2026-09-10 실측)', () => {
+  const link = (u) => `근거 [9월 프로모션](${u}) 참고`;
+  const hosts = [
+    'https://app.notion.com/p/9-3d7ad9e02b0b81a2bfadf788d97532f9',
+    'https://www.notion.so/heybit/55555555000140028000000000000002',
+    'https://acme.notion.site/x-3d7ad9e02b0b81a2bfadf788d97532f9',
+  ];
+  for (const u of hosts) {
+    const { markdown } = toEnhancedMarkdown(link(u), { mentionLinks: true });
+    assert.equal(markdown, `근거 <mention-page url="${u}">9월 프로모션</mention-page> 참고`, u);
+  }
+  // Notion 이 아닌 호스트, id 없는 주소는 그대로 링크
+  for (const u of ['https://example.com/3d7ad9e02b0b81a2bfadf788d97532f9', 'https://app.notion.com/p/no-id-here']) {
+    const { markdown } = toEnhancedMarkdown(link(u), { mentionLinks: true });
+    assert.equal(markdown, link(u), u);
+  }
+  // 기본값(mentionLinks 없음)은 링크를 그대로 둔다 — 위키 게시 출력이 바뀌지 않아야 한다
+  assert.equal(toEnhancedMarkdown(link(hosts[0])).markdown, link(hosts[0]));
+});
+
 test('T11 md-notion: 파이프 표 → <table>, 셀 안 인라인 서식 유지', () => {
   const md = '| 항목 | 값 |\n|---|---|\n| 기한 | **14일** |\n| 비고 | `code` \\| 파이프 |\n';
   const { markdown } = toEnhancedMarkdown(md);
