@@ -21,6 +21,44 @@ function user(name) {
   return USERS[name];
 }
 
+function listUsers() {
+  return Object.values(USERS);
+}
+
+function userById(id) {
+  return Object.values(USERS).find((u) => u.id === id) || null;
+}
+
+// 쓰기 형태 속성 -> compact 형태 (POST /v1/pages 와 PATCH /v1/pages 공용)
+function writePropsToCompact(properties, schema) {
+  const compact = {};
+  let title = null;
+  for (const [name, val] of Object.entries(properties || {})) {
+    const type = schema[name];
+    if (!type) return { error: `${name} is not a property that exists` };
+    if (type === 'title') title = (val.title || []).map((t) => t.text.content).join('');
+    else if (type === 'select') compact[name] = val.select ? val.select.name : null;
+    else if (type === 'status') compact[name] = val.status ? val.status.name : null;
+    else if (type === 'url') compact[name] = val.url;
+    else if (type === 'rich_text') compact[name] = (val.rich_text || []).map((t) => t.text.content).join('');
+    else if (type === 'multi_select') compact[name] = (val.multi_select || []).map((o) => o.name);
+    else if (type === 'checkbox') compact[name] = Boolean(val.checkbox);
+    else if (type === 'date') compact[name] = val.date ? val.date.start : null;
+    else if (type === 'relation') compact[name] = (val.relation || []).map((r) => r.id);
+    else if (type === 'people') {
+      // 실 API 와 같이 id 로 받는다. 워크스페이스에 없는 id 는 거부한다.
+      const names = [];
+      for (const ref of val.people || []) {
+        const found = ref && ref.id ? userById(ref.id) : null;
+        if (!found) return { error: `Could not find user with ID: ${ref && ref.id}` };
+        names.push(found.name);
+      }
+      compact[name] = names;
+    }
+  }
+  return { compact, title };
+}
+
 function expandProps(compact, schema, title) {
   const out = {};
   for (const [name, type] of Object.entries(schema)) {
@@ -96,6 +134,30 @@ function loadWorkspace(dir = FIXTURE_DIR) {
   return { meta: ws, pages, databases, dataSources };
 }
 
+// 읽기 형태 properties -> compact (부분 갱신 병합용)
+function compactOf(page, schema) {
+  const out = {};
+  for (const [name, type] of Object.entries(schema)) {
+    const prop = (page.properties || {})[name];
+    if (!prop || type === 'title') continue;
+    if (type === 'select') out[name] = prop.select ? prop.select.name : null;
+    else if (type === 'status') out[name] = prop.status ? prop.status.name : null;
+    else if (type === 'url') out[name] = prop.url || null;
+    else if (type === 'rich_text') out[name] = (prop.rich_text || []).map((t) => t.plain_text || (t.text && t.text.content) || '').join('');
+    else if (type === 'multi_select') out[name] = (prop.multi_select || []).map((o) => o.name);
+    else if (type === 'checkbox') out[name] = Boolean(prop.checkbox);
+    else if (type === 'date') out[name] = prop.date ? prop.date.start : null;
+    else if (type === 'relation') out[name] = (prop.relation || []).map((r) => r.id);
+    else if (type === 'people') out[name] = (prop.people || []).map((x) => x.name);
+  }
+  return out;
+}
+
+function metaTitle(page) {
+  const t = Object.values(page.properties || {}).find((x) => x && x.type === 'title');
+  return t ? (t.title || []).map((r) => r.plain_text || (r.text && r.text.content) || '').join('') : '';
+}
+
 function publicPage(p) {
   const { _markdown, _truncated, _unknown, ...rest } = p;
   return rest;
@@ -148,6 +210,17 @@ function createMockNotion(workspace, opts = {}) {
 
     const parts = u.pathname.split('/').filter(Boolean); // ['v1', ...]
     const [, resource, id, sub] = parts;
+
+    if (method === 'GET' && resource === 'users' && !id) {
+      // N15: 사용자 목록. 게스트는 응답에 없다(이 mock 에도 없다).
+      return response(200, { object: 'list', type: 'user', user: {}, ...paginate(listUsers(), { page_size: u.searchParams.get('page_size'), start_cursor: u.searchParams.get('start_cursor') }) });
+    }
+
+    if (method === 'GET' && resource === 'users' && id) {
+      const found = userById(id);
+      if (!found) return response(404, errorBody(404, 'object_not_found', `Could not find user with ID: ${id}`));
+      return response(200, found);
+    }
 
     if (method === 'POST' && resource === 'search') {
       const filter = body.filter || {};
@@ -211,7 +284,22 @@ function createMockNotion(workspace, opts = {}) {
       const p = ws.pages.get(id);
       if (!p) return response(404, errorBody(404, 'object_not_found', `page ${id}`));
       if (typeof body.in_trash === 'boolean') { p.in_trash = body.in_trash; p.is_archived = body.in_trash; }
-      if (body.properties && body.properties.title) p.properties.title = { id: 'title', type: 'title', title: rt(body.properties.title.title ? body.properties.title.title[0].text.content : String(body.properties.title)) };
+      if (body.properties) {
+        const isRow = p.parent && p.parent.type === 'data_source_id';
+        if (isRow) {
+          // 데이터베이스 행: 스키마대로 부분 갱신 (N16 — 속성만, 본문은 못 건드림)
+          const conv = writePropsToCompact(body.properties, ws.meta.propertySchema);
+          if (conv.error) return response(400, errorBody(400, 'validation_error', conv.error));
+          const merged = compactOf(p, ws.meta.propertySchema);
+          for (const [k, v] of Object.entries(conv.compact)) merged[k] = v;
+          p.properties = expandProps(merged, ws.meta.propertySchema, conv.title === null ? metaTitle(p) : conv.title);
+        } else if (body.properties.title) {
+          p.properties.title = { id: 'title', type: 'title', title: rt(body.properties.title.title ? body.properties.title.title[0].text.content : String(body.properties.title)) };
+        } else {
+          return response(400, errorBody(400, 'validation_error', 'page has no properties other than title'));
+        }
+        p.last_edited_time = '2026-09-10T09:00:00.000Z';
+      }
       writes.push({ op: 'update_page', id, body });
       return response(200, publicPage(p));
     }
@@ -223,21 +311,10 @@ function createMockNotion(workspace, opts = {}) {
       if (!ds) return response(404, errorBody(404, 'object_not_found', `data source ${dsId}`));
       createdCount++;
       const newId = fill(ws.meta.idScheme.createdByPublish, { NN: String(createdCount).padStart(2, '0') });
-      const compact = {};
-      let title = '';
-      for (const [name, val] of Object.entries(body.properties || {})) {
-        const schemaType = ws.meta.propertySchema[name];
-        if (!schemaType) return response(400, errorBody(400, 'validation_error', `${name} is not a property that exists`));
-        if (schemaType === 'title') title = (val.title || []).map((t) => t.text.content).join('');
-        else if (schemaType === 'select') compact[name] = val.select ? val.select.name : null;
-        else if (schemaType === 'url') compact[name] = val.url;
-        else if (schemaType === 'rich_text') compact[name] = (val.rich_text || []).map((t) => t.text.content).join('');
-        else if (schemaType === 'multi_select') compact[name] = (val.multi_select || []).map((o) => o.name);
-        else if (schemaType === 'checkbox') compact[name] = Boolean(val.checkbox);
-        else if (schemaType === 'date') compact[name] = val.date ? val.date.start : null;
-        else if (schemaType === 'relation') compact[name] = (val.relation || []).map((r) => r.id);
-        else if (schemaType === 'people') compact[name] = (val.people || []).map((u) => u.name || u.id);
-      }
+      const conv = writePropsToCompact(body.properties, ws.meta.propertySchema);
+      if (conv.error) return response(400, errorBody(400, 'validation_error', conv.error));
+      const compact = conv.compact;
+      const title = conv.title || '';
       const page = {
         object: 'page', id: newId, parent: { type: 'data_source_id', data_source_id: dsId, database_id: ds.parent.database_id },
         created_time: '2026-09-09T12:00:00.000Z', last_edited_time: '2026-09-09T12:00:00.000Z', in_trash: false, is_archived: false, is_locked: false,
@@ -277,4 +354,4 @@ function createMockNotion(workspace, opts = {}) {
   return { fetch: fetchImpl, calls, writes, workspace: ws, pageUrl };
 }
 
-module.exports = { loadWorkspace, createMockNotion, pageUrl, hex, FIXTURE_DIR };
+module.exports = { loadWorkspace, createMockNotion, pageUrl, hex, FIXTURE_DIR, listUsers, userById };

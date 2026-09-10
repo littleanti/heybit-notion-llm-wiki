@@ -3,6 +3,8 @@
 // 실 Notion 렌더는 미실측이다. 규칙이 틀렸다면 골든도 함께 틀리다는 한계를 문서에 남겼다.
 
 const ESCAPE_RE = /[<>{}$^|[\]]/g;
+// Notion 페이지 URL (32자리 16진수 id 를 담은 notion.so / notion.site 주소)
+const NOTION_URL_RE = /^https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site)\/[^\s)]*[0-9a-fA-F]{32}/;
 
 function escapeText(s) {
   // 텍스트 런: 태그·괄호·수식·표 구분자·대괄호를 이스케이프. `*`·`_`·`` ` `` 는 마크다운 서식이므로 둔다.
@@ -24,6 +26,7 @@ function inline(text, ctx) {
       const label = m[3];
       const href = m[4];
       if (isImage) out += `![${escapeText(label)}](${href})`;
+      else if (ctx.mentionLinks && NOTION_URL_RE.test(href)) out += `<mention-page url="${href}">${escapeText(label)}</mention-page>`;
       else if (/^(https?:|mailto:)/.test(href)) out += `[${escapeText(label)}](${href})`;
       else {
         const resolved = ctx.resolveLink ? ctx.resolveLink(href) : null;
@@ -70,7 +73,8 @@ function tableBlock(rows, ctx) {
 const LIST_RE = /^(\s*)([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?(.*)$/;
 
 function toEnhancedMarkdown(markdown, opts = {}) {
-  const ctx = { resolveLink: opts.resolveLink || null, unresolved: [] };
+  // mentionLinks: Notion 페이지 링크를 <mention-page> 로 바꾼다 (작성 스킬용). 기본값 false — 위키 게시 출력은 그대로다
+  const ctx = { resolveLink: opts.resolveLink || null, mentionLinks: Boolean(opts.mentionLinks), unresolved: [] };
   const lines = markdown.replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->/g, '').split('\n');
   const out = [];
   let i = 0;
@@ -163,4 +167,4 @@ function callout(text, { icon = '🤖', color = 'gray_bg' } = {}) {
   return `<callout icon="${icon}" color="${color}">\n\t${text}\n</callout>`;
 }
 
-module.exports = { toEnhancedMarkdown, escapeText, inline, callout, splitCells };
+module.exports = { toEnhancedMarkdown, escapeText, inline, callout, splitCells, NOTION_URL_RE };

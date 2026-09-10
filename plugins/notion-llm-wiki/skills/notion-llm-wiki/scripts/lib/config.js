@@ -52,7 +52,7 @@ function loadConfig(rootDir) {
   cfg.services = cfg.services.map((s) => ({ ...s, rootPageId: normalizeId(s.rootPageId) }));
   cfg.wiki.rootPageId = normalizeId(cfg.wiki.rootPageId);
   cfg.sync = { sensitiveValues: ['민감'], excludeWhenUnset: false, rps: 3, ...(cfg.sync || {}) };
-  cfg.paths = { raw: 'raw', wiki: 'wiki', ...(cfg.paths || {}) };
+  cfg.paths = { raw: 'raw', wiki: 'wiki', drafts: 'drafts', ...(cfg.paths || {}) };
   cfg.values = cfg.values || {};
   cfg.rootDir = rootDir;
   return cfg;

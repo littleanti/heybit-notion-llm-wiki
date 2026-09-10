@@ -72,16 +72,16 @@
 
 | 영역 | 선택 | 근거 | 검증 상태 |
 |---|---|---|---|
-| 런타임 | Node.js `>=22` | 자매 저장소와 동일. 내장 `fetch`·`node:test`·`node:fs` 만 사용 → **의존성 0개**, `npm install` 불필요 | Node 24.14.1 로컬 실측(64 테스트). Node 22 는 P9 CI 매트릭스 |
+| 런타임 | Node.js `>=22` | 자매 저장소와 동일. 내장 `fetch`·`node:test`·`node:fs` 만 사용 → **의존성 0개**, `npm install` 불필요 | Node 24.14.1 로컬 실측(98 테스트). Node 22 는 CI 매트릭스 |
 | Notion API | REST, `Notion-Version: 2026-03-11` | 최신 버전. `2025-09-03` 의 data source 모델과 `2026-02-26` 의 Markdown 엔드포인트를 포함 | **공식 문서로 확인** (3.1). 실 워크스페이스 **미실측** |
 | 본문 I/O | **Markdown 엔드포인트** (`GET /v1/pages/{id}/markdown`, `POST /v1/pages` + `markdown`, `PATCH /v1/pages/{id}/markdown`) | 블록 변환기를 만들지 않는다 (ADR-006) | 문서 확인. mock 으로 계약 고정 (T4·T12·T13) |
 | 발견(discovery) | `POST /v1/search` + `POST /v1/data_sources/{id}/query` | 블록 트리 순회 없이 전체 목록과 `last_edited_time` 을 얻는다 (ADR-007) | 문서 확인. mock 으로 38 페이지 → 호출 59회 실측 |
 | 설정 | `notion-wiki.config.json` + `.env` | dotenv 없이 `.env` 를 직접 파싱 (KEY=VALUE 줄) | 실측 (config 테스트 4건) |
 | frontmatter | YAML **부분집합** (스칼라·문자열·불리언·숫자·스칼라 배열·평면 객체 배열) | 파서 의존성을 피한다. 부분집합 밖의 YAML 은 명시적으로 거부한다 | 실측 (라운드트립 T1) |
-| 테스트 | `node:test` + golden 파일 + **주입식 mock fetch** | 토큰 없이 전 경로 실행 | 실측 — 64 테스트, 약 3초 |
+| 테스트 | `node:test` + golden 파일 + **주입식 mock fetch** | 토큰 없이 전 경로 실행 | 실측 — 98 테스트, 약 5초 |
 | 스킬 | `plugins/notion-llm-wiki/skills/notion-llm-wiki/SKILL.md` — Claude Code **플러그인**으로 배포 (3.3, ADR-009) | 공식 스킬·플러그인 규약 (3.2·3.3) | 문서 확인 + 구조 테스트(T16·T18) + `claude plugin validate --strict` + `--plugin-dir` 로드 + 절차 문서만으로 위키 합성 실행(P6) |
 
-### 3.1 Notion API — 문서로 확인한 사실 (2026-09-09)
+### 3.1 Notion API — 문서로 확인한 사실 (2026-09-09, N15·N16 은 2026-09-10)
 
 구현이 의존하는 사실만 적는다. 각 항목은 공식 레퍼런스(developers.notion.com)에서 확인했다.
 **실 워크스페이스에 대해 실측한 것은 없다** — 전부 "문서 확인" 상태이며, 토큰을 확보하면
@@ -103,6 +103,8 @@
 | N12 | 연결(integration)은 기본적으로 **아무 페이지에도 접근 못 함** — 페이지 `•••` → Connections 에서 추가해야 하고, 하위에 상속 | README 의 설치 절차. 서비스 루트와 위키 루트 각각 연결 |
 | N13 | 요청 한도: 블록 100개/요청, rich text 2,000자, 1,000 블록 요소·500KB/요청 | Markdown 엔드포인트를 쓰면 블록 분할은 서버가 처리. 500KB 를 넘는 위키 페이지는 **만들지 않는다**(lint 상한 200KB) |
 | N14 | 공식 JS SDK `@notionhq/client` 5.x 가 위 버전을 지원 | **쓰지 않는다** (의존성 0개 원칙). 호출 수가 적고 fetch 로 충분 |
+| N15 | `GET /v1/users` — 사용자 목록(페이지네이션 `start_cursor`·`page_size`). 사용자 객체는 `{object, id, type, name, avatar_url, person.email}`. **연결에 "사용자 정보" 권한이 필요**하고 **게스트는 빠진다**. 단건은 `GET /v1/users/{id}`, 봇 자신은 `GET /v1/users/me` (2026-09-10 확인) | `people` 속성을 **쓰려면** 이름이 아니라 사용자 id 가 필요하다. 담당자 이름 → id 해석에 쓴다 (6.11). 못 찾거나 동명이인이면 중단 |
+| N16 | `PATCH /v1/pages/{id}` — **속성만** 수정한다(본문은 못 건드림. 본문은 N5 의 markdown 엔드포인트). `properties`·`icon`·`cover`·`in_trash`·`is_archived` 등을 받는다. 쓰기 형태: people 은 `[{id}]`, select·status 는 `{name}` 또는 `{id}`, multi_select 는 `[{name}]`, date 는 `{start,end?}`, rich_text 는 rich text 배열, url 은 문자열, checkbox 는 불리언, relation 은 `[{id}]` (2026-09-10 확인) | 기존 페이지 수정에서 속성 변경분만 이 호출로, 본문은 N5 로 — **두 호출은 각각 실패할 수 있으므로 속성 → 본문 순서로 하고 실패를 그대로 보고한다** |
 
 ### 3.2 Claude Code 스킬 규약 — 문서로 확인한 사실
 
@@ -172,7 +174,7 @@ heybit-notion-llm-wiki/
 ├── plugins/notion-llm-wiki/           ★ 플러그인 루트 (설치 id `notion-llm-wiki@heybit-notion-llm-wiki`)
 │   ├── .claude-plugin/plugin.json     name · version(package.json 과 동일) · description · author · repository · license · keywords
 │   ├── README.md                      플러그인 단독 안내(설치·설정·서브커맨드)
-│   └── skills/notion-llm-wiki/        ★ 스킬 — 옛 `.claude/skills/notion-llm-wiki/` 를 그대로 옮긴 것
+│   ├── skills/notion-llm-wiki/        ★ 위키 운영 스킬 — 옛 `.claude/skills/notion-llm-wiki/` 를 그대로 옮긴 것
 │       ├── SKILL.md                   진입점. $0 로 sync/ingest/query/lint/publish 분기. 스크립트는 `${CLAUDE_SKILL_DIR}/scripts/…`
 │       ├── references/
 │       │   ├── wiki-schema.md         위키 규칙 (페이지 종류·상한·출처·모순·신선도) — ingest/query 가 먼저 읽는다
@@ -194,6 +196,23 @@ heybit-notion-llm-wiki/
 │               ├── slug.js            파일명 생성
 │               ├── md-notion.js       표준 MD → enhanced MD 정규화, 링크 해석
 │               └── report.js          동기화 리포트 작성
+│   └── skills/notion-draft/            ★ 작성 스킬 (P11, ADR-010) — 입력 → 초안 → 검토 → Notion
+│       ├── SKILL.md                    $0 로 new/edit/submit 분기. 스크립트는 `${CLAUDE_SKILL_DIR}/scripts/…`
+│       ├── references/
+│       │   ├── draft-templates.md      문서유형 9종의 본문 골격 (DESIGN 2절의 스킬용 사본)
+│       │   └── draft-procedure.md      new·edit·submit 절차 상세, 물어볼 것과 묻지 않을 것
+│       └── scripts/
+│           ├── draft-new.js            유형별 골격 초안 파일 생성
+│           ├── draft-pull.js           기존 페이지 → 초안 파일 (속성 + 현재 본문 + 기준 시각·해시)
+│           ├── draft-submit.js         검증 → dry-run(속성·크기·diff) → --apply(생성/교체) → raw 즉시 반영
+│           └── lib/
+│               ├── shared.js           형제 스킬의 lib 재수출 — **두 스킬의 결합은 이 파일 하나**
+│               ├── draft.js            초안 파일 읽기·쓰기·검증
+│               ├── doc-templates.js    문서유형별 필수 섹션 (T23 이 DESIGN 2절과 대조)
+│               ├── props.js            내부 meta → Notion 쓰기 형태 properties, 담당자 이름 → 사용자 id
+│               └── diff.js             줄 단위 LCS diff (dry-run 검토용)
+│
+├── drafts/                             작성 중인 초안 (샘플 1개). 게시하면 지워도 된다 — 설정 `paths.drafts`
 │
 ├── raw/                               샘플 미러 (fixture 워크스페이스에서 생성한 golden)
 │   ├── .sync-state.json
@@ -414,6 +433,66 @@ fixture(`workspace.json`) 를 읽어 다음을 흉내 내는 `fetch` 함수를 �
 `POST /v1/pages`, `PATCH /v1/pages/{id}/markdown`, 그리고 옵션으로 **N번째 요청에 429 + Retry-After**.
 쓰기 요청은 메모리 상의 워크스페이스를 바꾸고 기록한다 (A11 의 요청 수 검증).
 
+### 6.8 `draft-new.js` — 골격 초안 만들기
+
+```
+draft-new.js --service <slug> --category <slug> --type <문서유형> --title <제목> [--owner <이름>] [--root <dir>]
+```
+
+`lib/doc-templates.js` 의 유형별 섹션 순서대로 `##` 골격과 frontmatter 를 쓴다. 본문 내용은 **비운다** —
+Claude 가 Edit 로 채운다. 이미 파일이 있으면 덮어쓰지 않고 중단한다. **Notion 을 호출하지 않는다(토큰 불필요).**
+
+이 스크립트가 있는 이유는 "섹션 누락" 을 LLM 의 성실성에 맡기지 않기 위해서다. 골격을 코드가 만들면 검증(6.10)과 골격이 같은 표를 본다.
+
+### 6.9 `draft-pull.js` — 기존 페이지를 초안으로
+
+```
+draft-pull.js <raw 경로 | Notion URL | page id> [--root <dir>]
+```
+
+1. 대상 식별: raw 파일이면 그 frontmatter 의 `notion_id`(속성 위치)와 `source_url`(본문 위치)을 쓴다.
+   등록 항목이면 둘이 다르다 — `target_meta_id` 와 `target_body_id` 를 초안에 각각 적는다.
+2. `GET /v1/pages/{target_meta_id}` 로 속성, `GET /v1/pages/{target_body_id}/markdown` 으로 현재 본문.
+3. 거부 조건(민감·폐기·휴지통·하위 페이지 포함·위키 루트 아래)을 여기서 먼저 검사한다 — 고칠 수 없는 페이지로 사람을 데려가지 않는다.
+4. `drafts/<svc>/<cat>/<제목>-<id6>.md` 에 `kind: edit` 초안을 쓴다. `base_last_edited_time`(대상의 최종수정)과
+   `base_hash`(받은 본문의 sha256)를 함께 적는다. 읽기 전용이다.
+
+**본문은 Notion 이 준 enhanced markdown 그대로** 둔다(표는 `<table>`, 들여쓰기는 탭, `\<` 같은 이스케이프 포함).
+정규화기를 다시 돌리면 이스케이프가 이중으로 걸리므로, `kind: edit` 의 본문은 제출 때도 **그대로 보낸다** (6.10).
+
+### 6.10 `draft-submit.js` — 검증 · dry-run · 게시
+
+```
+draft-submit.js <초안 파일> [--apply] [--json] [--root <dir>]
+```
+
+`--apply` 가 없어도 **읽기 호출은 한다** — 대상 DB 확인, 담당자 해석, 현재 본문과의 diff 가 dry-run 의 내용이기 때문이다.
+쓰기 호출은 `--apply` 에서만 한다.
+
+| 단계 | 신규(`kind: new`) | 수정(`kind: edit`) |
+|---|---|---|
+| 1. 검증 | `lib/draft.js` — 필수 속성 5, 허용값, 요약 120자, 유형별 섹션(오류), 오늘 날짜 변경 이력, `상태: 초안` | 같음. 단 섹션 누락은 **경고** (템플릿을 안 따르는 레거시가 있다) |
+| 2. 대상 | 서비스 루트 → 카테고리 페이지 → 그 안의 데이터베이스 → data source (register-legacy 와 같은 경로) | `target_meta_id`·`target_body_id` 로 직접 조회 |
+| 3. 안전 | — | `last_edited_time` ≠ `base_last_edited_time` → 중단. 민감·폐기·휴지통·하위 페이지 포함 → 중단 |
+| 4. 본문 | 표준 MD → enhanced MD 정규화(6.3, `mentionLinks: true`) | **정규화하지 않고 그대로.** 현재 본문과 같으면 "본문 변경 없음" |
+| 5. 속성 | `lib/props.js` 로 전체 속성 생성 | 초안과 현재 속성의 **차이만** 생성 |
+| 6. dry-run | 대상 DB 이름, 속성 표, 본문 바이트 | 속성 변경 표 + 본문 **줄 단위 diff** |
+| 7. `--apply` | `POST /v1/pages`(parent = data source, properties + markdown) | 속성 변경이 있으면 `PATCH /v1/pages/{meta}`(N16) → 본문이 바뀌면 `PATCH /v1/pages/{body}/markdown` `replace_content`(N5, `allow_deleting_content: false`) |
+| 8. raw | 게시된 페이지를 다시 읽어 `raw/` 에 기록 + `.sync-state.json` 갱신 (DESIGN 10.8) | 같음 |
+
+`allow_deleting_content` 는 **항상 `false`** 로 보낸다. 하위 페이지가 있으면 3단계에서 이미 중단시켰고, 그래도 서버가 거부하면
+그 오류를 그대로 보여 준다 — 우회하지 않는다.
+
+### 6.11 작성 스킬의 라이브러리
+
+| 모듈 | 계약 |
+|---|---|
+| `lib/shared.js` | 형제 스킬의 `lib/{config,notion-client,frontmatter,meta,slug,md-notion,pages}` 와 `sync.js`(`sortedJson`·`STATE_FILE`) 를 **상대 경로로 한 번** require 해서 재수출한다. 레이아웃이 바뀌면 고칠 곳은 이 파일뿐이다 |
+| `lib/doc-templates.js` | `SECTIONS: { <문서유형>: string[] }` — 유형별 필수 H2 섹션(순서 포함)과 `skeleton(type)`. DESIGN 2절이 정본이고 T23 이 대조한다 |
+| `lib/draft.js` | `readDraft(file)` → `{data, body, sections}`; `validate({cfg, draft, today, mode})` → `{errors, warnings}`(코드는 DESIGN 10.5); `draftPath(cfg, {...})`; `writeDraft(...)` |
+| `lib/props.js` | `buildProperties({cfg, meta, users})` → Notion 쓰기 형태 객체(설정의 이름 매핑 사용). `resolveOwners({client, names})` → `[{id}]`, 미발견·동명이인은 `Error`. `diffProperties(cfg, draftMeta, page)` → 바뀐 속성만 |
+| `lib/diff.js` | `lineDiff(a, b)` → `[{op:' '|'-'|'+', text}]` (LCS). `formatDiff(rows, {context})` → 사람이 읽는 블록. 순수 함수 |
+
 ## 7. 데이터 모델 요약
 
 frontmatter 의 정확한 키·허용값·예시는 [DESIGN 4절](./DESIGN.md#4-raw-frontmatter--notion-속성-매핑)에,
@@ -456,6 +535,13 @@ frontmatter 의 정확한 키·허용값·예시는 [DESIGN 4절](./DESIGN.md#4-
 | T14 | publish 안전 검사 | 루트 밖 id 거부 (A12) |
 | T15 | client 재시도 | 429 + Retry-After 대기·재시도, 페이지네이션 (A13) |
 | T16 | 스킬 구조 | SKILL.md frontmatter 필드, 5개 서브커맨드가 references 를 가리킴 (A15) |
+| T17 | register-legacy | 미등록 레거시 수 = 생성 요청 수, 재실행 시 0, 원본 페이지 불변 |
+| T18 | 플러그인 패키징 | `plugin.json`·`marketplace.json`·`settings.json` 정합성, 플러그인 디렉터리에 샘플·락파일 없음, SKILL.md 가 `${CLAUDE_SKILL_DIR}` 로만 스크립트를 부름 |
+| T19 | 초안 검증 | 단위. 검증 코드 13종([DESIGN 10.5](./DESIGN.md#105-검증-규칙)) 각각 + 무결함 (A18, A23) |
+| T20 | 속성 쓰기 매핑 | 단위 + mock. 타입 9종, 담당자 이름 → id, 미발견·동명이인 중단, 변경분만 뽑기 (A20) |
+| T21 | draft-submit 신규 | mock. dry-run 쓰기 0건 → apply 로 DB 행 생성 → raw 즉시 기록 → 이어서 sync 시 markdown 호출 0 (A19, A20, A21) |
+| T22 | draft-submit 수정 | mock. pull → 수정 → diff → 교체. 거부 4종(원본 변경·민감·폐기·하위 페이지) 각각 쓰기 0건 (A22) |
+| T23 | 작성 스킬 구조 | `notion-draft/SKILL.md` frontmatter·서브커맨드 3개·references 존재, `doc-templates.js` 가 DESIGN 2절 표와 일치 |
 
 `npm test` = `node --test "test/*.test.js"`. CI 는 Node 22·24 매트릭스.
 
@@ -658,3 +744,58 @@ frontmatter 에 기록해 손실을 숨기지 않는다.
 스킬 디렉터리는 내부 구조 그대로 이동, 스크립트 호출은 `${CLAUDE_SKILL_DIR}/scripts/…` 로 본문·`allowed-tools` 를 통일. 설치 id `notion-llm-wiki@heybit-notion-llm-wiki`.
 `plugin.json` 의 `version` 은 `package.json` 과 같게 유지하고(T18 이 검사) 릴리스마다 올린다.
 **미확정**: GitHub 경유 실제 설치·갱신(로컬은 `validate --strict` 와 `--plugin-dir` 로 대체), CI 러너의 CLI 설치.
+
+### ADR-010 — 작성 기능은 별도 스킬, lib 는 형제 스킬에서 공유
+
+**맥락.** 2026-09-10 요청: 실무자가 Claude Code 에 내용을 주면 규약을 지킨 Notion 페이지가 만들어지게. 인터뷰로
+"같은 플러그인 안의 별도 스킬" 이 선택됐다([LOG P11](./LOG.md)). 남은 문제는 **공용 코드를 어떻게 나누는가** 였다.
+
+**1차 사고.** 새 스킬 디렉터리에 필요한 lib 를 복사한다. 스킬마다 자기 것만 갖고 있으면 디렉터리 하나만 떼어 써도 동작한다.
+
+**비판적 재사고.**
+- 공격 ①: 복사한 `config.js`·`notion-client.js` 는 곧 어긋난다. 설정 검증 규칙이 두 벌이 되면 "설정은 맞는데 스킬 하나만 거부" 같은
+  진단 불가능한 상태가 생긴다. → 복사는 탈락.
+- 공격 ②: 그러면 공용 lib 를 **플러그인 루트**(`plugins/notion-llm-wiki/scripts/lib/`)로 올리고 두 스킬이 `${CLAUDE_PLUGIN_ROOT}` 로 참조한다.
+  그러나 ADR-009 는 스크립트를 스킬 디렉터리 안에 두어 `.claude/skills/` 복사 경로를 살렸다. lib 를 올리면 그 경로가 **위키 스킬까지** 깨진다.
+  이미 동작하고 CI 로 검증된 것을 새 기능 때문에 깨는 것은 손해다. → 탈락.
+- 공격 ③: 새 스킬이 형제 스킬의 lib 를 **파일 상대 경로로 require** 한다(`../../notion-llm-wiki/scripts/lib/config`).
+  플러그인은 디렉터리 전체가 캐시로 복사되므로(3.3) 설치본에서도 경로가 성립한다. 잃는 것은 "`notion-draft` 디렉터리만 떼어 복사" 인데,
+  그 경로는 애초에 존재하지 않았다(이 스킬은 처음부터 플러그인으로 배포된다).
+- 공격 ④: 상대 경로가 여러 파일에 흩어지면 레이아웃 변경에 약하다. → `lib/shared.js` **한 파일**에 모아 재수출하고, 다른 파일은 그것만 본다.
+  T23 이 이 파일이 실제로 해석되는지 확인한다.
+- 공격 ⑤: 스킬이 둘이면 사용자가 어느 것을 부를지 헷갈린다. → description 을 방향으로 나눈다: `notion-llm-wiki` 는 **Notion → 위키**(동기화·합성·질의·게시),
+  `notion-draft` 는 **입력 → Notion**(작성·수정). 두 스킬의 description 에 서로를 한 줄로 가리킨다.
+
+**종합.** `skills/notion-draft/` 를 새로 만들고, 공용 lib 는 `lib/shared.js` 한 파일이 형제 스킬에서 상대 경로로 재수출한다.
+설정 파일과 `raw/`·`.sync-state.json` 형식은 그대로 공유한다. 공용 코드에 대한 변경은 **추가만** 한다
+(`sync.js` 의 `sortedJson` export, `config.js` 의 `paths.drafts` 기본값, `md-notion.js` 의 `mentionLinks` 옵션 — 기본값은 기존 동작).
+**미확정**: 플러그인 캐시에서 상대 require 가 실제로 해석되는지는 설치본으로 실행해 확인해야 한다(로컬 `--plugin-dir` 로는 확인 가능).
+
+### ADR-011 — 기존 페이지를 고치는 경로의 안전 모델
+
+**맥락.** 인터뷰에서 범위가 "신규 + 기존 페이지 수정" 으로, 대상은 "제한 없이(폐기·민감 제외)" 로 정해졌다. 즉 **AI 가 사람이 쓴 확정 문서의
+본문을 교체할 수 있다.** 이 경로에서 데이터를 잃지 않는 것이 이 ADR 의 목적이다.
+
+**1차 사고.** dry-run 으로 diff 를 보여 주고 사람이 확인하면 교체한다. 확인이 있으니 충분하다.
+
+**비판적 재사고.**
+- 공격 ①: **동시 편집.** 초안을 만든 뒤 담당자가 Notion 에서 같은 페이지를 고치면, 교체는 그 편집을 통째로 지운다. dry-run 의 diff 는
+  "내가 받은 옛 본문" 기준이라 이 사실이 보이지도 않는다. → 초안에 `base_last_edited_time` 을 적고, 제출 때 **현재 값과 다르면 중단**한다.
+  낙관적 잠금이며, Notion 에 잠금 API 가 없으므로 이것이 할 수 있는 최선이다.
+- 공격 ②: **하위 페이지 삭제.** N5 에 따르면 본문 교체는 하위 페이지·DB 를 지울 수 있고, 그때는 `allow_deleting_content: true` 가 필요하다.
+  그 플래그를 켜는 것은 "지워도 좋다" 는 뜻이다. → 켜지 않는다. 대신 **받은 본문에 `<page url=` 또는 `<database url=` 가 있으면 거부**하고
+  Notion 에서 직접 고치라고 안내한다. 검사가 서버 거부보다 앞서므로 사람은 이유를 먼저 안다.
+- 공격 ③: **민감 페이지.** 미러에 없으니 안전할 것 같지만, 수정 경로는 id·URL 로 직접 조회하므로 우회된다. → 조회 결과의 비밀등급을 보고 거부한다.
+- 공격 ④: **위키 페이지.** 위키 루트 아래 페이지는 `publish` 가 소유한다. 이 스킬이 고치면 다음 게시가 덮어쓴다(마커 문구가 이미 그렇게 예고한다).
+  → 대상이 위키 루트 아래면 거부한다.
+- 공격 ⑤: **이력 없는 수정.** 무엇이 왜 바뀌었는지 Notion 쪽에 남지 않으면, 위키가 "언제 바뀌었나" 를 복원할 수 없다.
+  → `## 변경 이력` 에 **오늘 날짜 항목**이 없으면 검증이 막는다(신규·수정 모두).
+- 공격 ⑥: **속성과 본문의 부분 실패.** 속성은 `PATCH /v1/pages`, 본문은 `PATCH …/markdown` 으로 호출이 둘이다. 앞이 성공하고 뒤가 실패하면
+  절반만 반영된다. 트랜잭션은 없다. → 순서를 **속성 → 본문**으로 고정하고(속성만 바뀐 상태는 무해하다), 실패 시 무엇이 반영됐는지 그대로 보고한다.
+- 공격 ⑦: **이스케이프 이중 적용.** 받은 본문은 이미 enhanced markdown 이다. 제출 때 정규화기를 다시 돌리면 `\<` 가 `\\<` 가 된다.
+  → `kind: edit` 의 본문은 정규화하지 않고 그대로 보낸다. 대신 초안 파일 머리말과 SKILL.md 가 "이 형식을 유지하라" 고 지시한다.
+
+**종합.** 수정 경로의 안전은 네 겹이다 — (1) 낙관적 잠금(`base_last_edited_time`), (2) 거부 목록(민감·폐기·휴지통·하위 페이지·위키 하위),
+(3) 강제 diff 와 dry-run 기본, (4) 변경 이력 항목 강제. `allow_deleting_content` 는 켜지 않는다.
+**미확정**: 실 Notion 에서 본문 교체가 페이지 코멘트를 유지하는지(P0 부터의 미확정), 그리고 `last_edited_time` 이 속성 변경으로도 바뀌는지 —
+바뀐다면 낙관적 잠금이 "본문은 그대로인데 중단" 을 낼 수 있다. 그때는 본문 해시(`base_hash`) 비교로 완화할 수 있게 초안에 해시를 함께 적어 둔다.

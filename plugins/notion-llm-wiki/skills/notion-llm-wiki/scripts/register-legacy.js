@@ -13,26 +13,38 @@ function titleOf(page) {
   return plainText(t ? t.title : []).trim();
 }
 
-async function runRegisterLegacy({ cfg, client, serviceSlug, categorySlug, apply = false, log = () => {} }) {
-  const service = cfg.services.find((s) => s.slug === serviceSlug);
-  if (!service) throw new Error(`서비스 slug 를 찾을 수 없다: ${serviceSlug}`);
-  const category = cfg.categories.find((c) => c.slug === categorySlug);
-  if (!category) throw new Error(`카테고리 slug 를 찾을 수 없다: ${categorySlug}`);
-
-  const pages = (await client.paginate('POST', '/v1/search', { filter: { property: 'object', value: 'page' } })).results;
-  const categoryPage = pages.find((p) => p.parent && p.parent.type === 'page_id' && normalizeId(p.parent.page_id) === service.rootPageId && categoryByName(cfg, titleOf(p)) === category);
+// 서비스 루트 → 카테고리 페이지 → 그 안의 데이터베이스 → data source.
+// 작성 스킬(notion-draft)의 draft-submit 도 같은 경로를 쓴다 — 구현은 이 함수 하나다 (docs/TRD.md 6.10).
+async function findCategoryDataSource({ cfg, client, service, category, pages = null }) {
+  const allPages = pages || (await client.paginate('POST', '/v1/search', { filter: { property: 'object', value: 'page' } })).results;
+  const categoryPage = allPages.find((p) => p.parent && p.parent.type === 'page_id' && normalizeId(p.parent.page_id) === service.rootPageId && categoryByName(cfg, titleOf(p)) === category);
   if (!categoryPage) throw new Error(`"${service.name}" 아래에서 카테고리 페이지 "${category.name}" 을 찾을 수 없다 (연결이 추가돼 있는가?)`);
   const categoryPageId = normalizeId(categoryPage.id);
 
   const dataSources = (await client.paginate('POST', '/v1/search', { filter: { property: 'object', value: 'data_source' } })).results;
-  let target = null;
   for (const ds of dataSources) {
     const dbId = ds.parent && ds.parent.database_id ? normalizeId(ds.parent.database_id) : null;
     if (!dbId) continue;
     const db = await client.request('GET', `/v1/databases/${dbId}`);
-    if (db.parent && db.parent.page_id && normalizeId(db.parent.page_id) === categoryPageId) { target = { dsId: normalizeId(ds.id), dbId, title: plainText(ds.title) }; break; }
+    if (db.parent && db.parent.page_id && normalizeId(db.parent.page_id) === categoryPageId) {
+      return { dsId: normalizeId(ds.id), dbId, title: plainText(ds.title), categoryPageId, pages: allPages };
+    }
   }
-  if (!target) throw new Error(`카테고리 페이지 "${category.name}" 안에 데이터베이스가 없다. 먼저 DB 를 만든다 (docs/DESIGN.md 1절)`);
+  throw new Error(`카테고리 페이지 "${category.name}" 안에 데이터베이스가 없다. 먼저 DB 를 만든다 (docs/DESIGN.md 1절)`);
+}
+
+function requireScope(cfg, serviceSlug, categorySlug) {
+  const service = cfg.services.find((s) => s.slug === serviceSlug);
+  if (!service) throw new Error(`서비스 slug 를 찾을 수 없다: ${serviceSlug}`);
+  const category = cfg.categories.find((c) => c.slug === categorySlug);
+  if (!category) throw new Error(`카테고리 slug 를 찾을 수 없다: ${categorySlug}`);
+  return { service, category };
+}
+
+async function runRegisterLegacy({ cfg, client, serviceSlug, categorySlug, apply = false, log = () => {} }) {
+  const { service, category } = requireScope(cfg, serviceSlug, categorySlug);
+  const target = await findCategoryDataSource({ cfg, client, service, category });
+  const { categoryPageId, pages } = target;
 
   const rows = (await client.paginate('POST', `/v1/data_sources/${target.dsId}/query`, {})).results;
   const registered = new Set(rows.map((r) => extractMeta(r, cfg).source).filter(Boolean).map(pageIdFromUrl));
@@ -77,4 +89,4 @@ if (require.main === module) {
   main(process.argv.slice(2)).catch((err) => { console.error(err.message); process.exit(1); });
 }
 
-module.exports = { runRegisterLegacy, summary };
+module.exports = { runRegisterLegacy, findCategoryDataSource, requireScope, summary, titleOf };

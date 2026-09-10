@@ -331,4 +331,4 @@ if (require.main === module) {
   main(process.argv.slice(2)).catch((err) => { console.error(err.message); process.exit(1); });
 }
 
-module.exports = { runSync, loadState, STATE_FILE, REPORT_FILE, matchCategory, titleOf };
+module.exports = { runSync, loadState, sortedJson, STATE_FILE, STATE_VERSION, REPORT_FILE, matchCategory, titleOf };

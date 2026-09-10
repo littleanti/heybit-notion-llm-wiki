@@ -49,6 +49,7 @@
   },
   "paths": {
     "raw": "raw",
-    "wiki": "wiki"
+    "wiki": "wiki",
+    "drafts": "drafts"
   }
 }

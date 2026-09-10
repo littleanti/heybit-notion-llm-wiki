@@ -37,6 +37,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P8 | README · 문서 마감 · Acceptance A1~A17 일괄 | 전 항목 실행 | `완료` |
 | P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `완료` |
 | P10 | **Claude Code 플러그인 패키징** — 스킬을 `plugins/notion-llm-wiki/skills/` 로 옮기고 marketplace 등록, `${CLAUDE_SKILL_DIR}` 경로화 | `claude plugin validate --strict` · `--plugin-dir` 로 로드 · `npm test` · CI | `완료` |
+| P11 | **작성 스킬 `notion-draft`** — 입력 → 규약을 지킨 로컬 초안 → 사람 검토 → Notion 게시 (신규 생성 + 기존 수정) | `npm test`(T19~T23) · `plugin validate --strict` · mock 게시·수정 왕복 | `완료` |
 
 ---
 
@@ -213,6 +214,36 @@ push 전 확인: `.env` 미포함, `raw/`·fixture 에 실제 정보 없음(가�
 `npm test` **69/69**(T18 5건 추가), `npm run lint` 오류 0, 색인 재생성 diff 없음. `wiki/log.md` 의 경로 문구를 바꾸면서 게시 골든(`publish-plan.json`)의 log.md 해시가 바뀌어 골든을 재생성했다.
 push 후: **CI run 34457349321 3 잡(test 22·24, plugin) 통과**, **GitHub 경유 설치 실측**(캐시에 플러그인 파일 21개만). 설치본으로 `lint` 를 헤드리스 실행해
 권한 거부 결함(따옴표·`cd &&` 로 접두 규칙 불일치)을 발견 → `allowed-tools` 따옴표 변형 + SKILL.md 실행 규칙으로 고쳐 재실측 거부 0건 — [LOG](./LOG.md) P10.
+
+---
+
+## P11 — 작성 스킬 `notion-draft`
+
+**배경**: 지금까지의 스킬은 Notion → 위키 방향만 다뤘다. 실무자가 **Notion 페이지를 쓰는 쪽**은 사람이 템플릿을 보고 손으로 했다.
+사용자 요청(2026-09-10)과 인터뷰 결과 7개는 [LOG P11](./LOG.md) 표에, 결정 근거는 [TRD ADR-010·011](./TRD.md#adr-010--작성-기능은-별도-스킬-lib-는-형제-스킬에서-공유) 에 있다.
+
+**작업**
+- `plugins/notion-llm-wiki/skills/notion-draft/` — `SKILL.md`($0 로 `new`|`edit`|`submit` 분기), `references/draft-templates.md`(유형 9종 골격), `references/draft-procedure.md`(절차 상세)
+- `scripts/lib/shared.js` — 형제 스킬(`notion-llm-wiki`)의 `lib/*` 재수출. **결합을 이 파일 하나로 국소화한다**
+- `scripts/lib/doc-templates.js` — 문서유형별 필수 섹션 표 (DESIGN 2절 정본의 코드 사본. T23 이 DESIGN 과 대조)
+- `scripts/lib/draft.js` — 초안 파일 읽기·쓰기·검증(필수 속성 5 · 유형별 섹션 · 요약 120자 · 날짜 형식 · 오늘 날짜 변경 이력)
+- `scripts/lib/props.js` — 내부 meta → Notion 쓰기 형태 properties. 담당자 이름 → 사용자 id 해석(`GET /v1/users`), 동명이인·미발견은 중단
+- `scripts/lib/diff.js` — 줄 단위 LCS diff (dry-run 검토용. 의존성 0 원칙이라 직접 쓴다)
+- `scripts/draft-new.js` — 유형별 골격 초안 파일 생성 (섹션 누락을 구조적으로 막는다)
+- `scripts/draft-pull.js` — 기존 페이지 → 초안 파일 (현재 속성 + 현재 본문 + `base_last_edited_time`·`base_hash`)
+- `scripts/draft-submit.js` — 검증 → 대상 확인 → dry-run(속성 표 · 본문 크기 · diff) → `--apply`(생성 또는 본문 교체) → `raw/` 즉시 반영
+- 공용 코드 소폭 변경: `sync.js` 가 `sortedJson` 을 export(상태 직렬화 한 곳 유지), `lib/config.js` 가 `paths.drafts`(기본 `drafts`) 를 허용,
+  `lib/md-notion.js` 에 `mentionLinks` 옵션 추가(Notion URL 링크 → `<mention-page>`; **기본값 false 로 기존 게시 출력은 바이트까지 그대로**)
+- mock 확장: `GET /v1/users`, `PATCH /v1/pages/{id}` 의 속성 전체 반영
+- 테스트 T19~T23, 샘플 초안 1개, `package.json`·`plugin.json` 버전 0.2.0
+
+**출구 조건**: `npm test` 전부 통과(T19~T23 포함), `npm run lint` 오류 0, 색인 재생성 diff 없음,
+`claude plugin validate --strict` 통과, 스킬을 `--plugin-dir` 로 로드해 `new`→`submit`(dry-run) 을 실제로 실행. → 커밋 15
+
+**상태: `완료`** (2026-09-10) — `npm test` **98/98**(T19~T23 신규 34건), `npm run lint` 오류 0, 색인 재생성 diff 없음,
+`plugin validate --strict` 플러그인·마켓플레이스 통과. **도그푸딩**: `--plugin-dir` 로 로드한 헤드리스 세션에 회의 메모를 주자
+references 를 먼저 읽고 → `draft-new.js` 를 단독 명령으로 호출(권한 거부 0) → 섹션을 입력 내용만으로 채우고 → 모르는 것 7건을
+`미확정 · 열린 질문` 에 질문으로 남겼다. 그 산출물의 검증 결과는 **오류 0 · 경고 0**. 발견한 결함 3건은 [LOG P11](./LOG.md) 에.
 
 ---
 
