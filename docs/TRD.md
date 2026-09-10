@@ -104,6 +104,9 @@
 | N13 | 요청 한도: 블록 100개/요청, rich text 2,000자, 1,000 블록 요소·500KB/요청 | Markdown 엔드포인트를 쓰면 블록 분할은 서버가 처리. 500KB 를 넘는 위키 페이지는 **만들지 않는다**(lint 상한 200KB) |
 | N14 | 공식 JS SDK `@notionhq/client` 5.x 가 위 버전을 지원 | **쓰지 않는다** (의존성 0개 원칙). 호출 수가 적고 fetch 로 충분 |
 | N15 | `GET /v1/users` — 사용자 목록(페이지네이션 `start_cursor`·`page_size`). 사용자 객체는 `{object, id, type, name, avatar_url, person.email}`. **연결에 "사용자 정보" 권한이 필요**하고 **게스트는 빠진다**. 단건은 `GET /v1/users/{id}`, 봇 자신은 `GET /v1/users/me` (2026-09-10 확인) | `people` 속성을 **쓰려면** 이름이 아니라 사용자 id 가 필요하다. 담당자 이름 → id 해석에 쓴다 (6.11). 못 찾거나 동명이인이면 중단 |
+| N17 | **실측(2026-09-10)** `GET /v1/pages/{id}/markdown` 은 멘션을 **라벨 없이 자기닫는 태그**로 돌려준다: `<mention-page url="https://app.notion.com/p/<id>"/>`. 만들 때 `<mention-page url="…">제목</mention-page>` 로 보내도 저장되는 것은 참조뿐이고 표시 텍스트는 대상 페이지 제목에서 온다. 페이지 URL 도 `app.notion.com/p/<id>` 로 정규화된다 | 멘션 → 미러 상대 경로 보강 정규식이 **자기닫는 형태를 받아야** 한다(6.1). 라벨이 없으므로 링크 텍스트는 대상 페이지 제목을 쓴다 |
+| N18 | **실측(2026-09-10)** Notion 이 돌려주는 표는 `<tr>`·`<td>` 에 **들여쓰기가 없다**. 우리 정규화기가 넣는 탭 들여쓰기도 문제없이 받아들여진다 | 정규화기의 탭 들여쓰기는 유지해도 된다. 골든과 실제 출력의 이 차이는 의미가 없다 |
+| N19 | **실측(2026-09-10)** 본문 markdown 에 존재하지 않는 페이지·DB 참조가 있으면 `POST /v1/pages` 가 400 `validation_error` 로 거부한다: `Cannot create database reference: Block … does not exist in the current space` | 작성 스킬이 만드는 본문의 링크는 **접근 가능한 실제 페이지**여야 한다. 해석 불가 링크를 텍스트로 남기는 현재 동작(6.3)이 맞다 |
 | N16 | `PATCH /v1/pages/{id}` — **속성만** 수정한다(본문은 못 건드림. 본문은 N5 의 markdown 엔드포인트). `properties`·`icon`·`cover`·`in_trash`·`is_archived` 등을 받는다. 쓰기 형태: people 은 `[{id}]`, select·status 는 `{name}` 또는 `{id}`, multi_select 는 `[{name}]`, date 는 `{start,end?}`, rich_text 는 rich text 배열, url 은 문자열, checkbox 는 불리언, relation 은 `[{id}]` (2026-09-10 확인) | 기존 페이지 수정에서 속성 변경분만 이 호출로, 본문은 N5 로 — **두 호출은 각각 실패할 수 있으므로 속성 → 본문 순서로 하고 실패를 그대로 보고한다** |
 
 ### 3.2 Claude Code 스킬 규약 — 문서로 확인한 사실

@@ -12,6 +12,50 @@
 
 ## 2026-09-10
 
+### `[fix]` 실 Notion 워크스페이스 스모크 테스트 — 멘션 태그 결함 발견·수정 · 상태: `진행중`
+
+**요청**: "토큰 추가했어. dummy 를 Notion 에 먼저 올리고, 작성한 프로젝트가 Notion 에서 데이터를 잘 가져와서 wiki 를 잘 작성하는지 테스트해줘." (2026-09-10)
+
+**환경**: 워크스페이스 `littleanti`, 내부 연결 `wiki`(소유 형태 workspace), 사람 사용자 1명.
+사용자가 `general` 팀스페이스에 빈 페이지 `heybit LLM Wiki 테스트` 를 만들고 그 페이지에 연결을 추가했다.
+
+**시딩**: `test/helpers/seed-notion.js`(신규)로 fixture 38페이지를 실제 구조로 올렸다 —
+위키 루트 1 · 서비스 2 · 카테고리 12 · 데이터베이스 12(속성 13개) · 레거시 4 · 일반 1 · DB 항목 32. 휴지통 fixture 1건은 제외.
+담당자는 워크스페이스의 사람 사용자 1명에게 전부 배정했다(가상 이름은 실제 사용자가 아니다). 관련 페이지(relation)는 대상 id 순환 때문에 제외했다.
+
+**실측이 드러낸 API 사실 3건** (TRD 3.1 N17~N19 에 기록)
+1. **내부 연결은 workspace 최상위에 페이지를 만들 수 없다.** 공식 문서: "For internal connections, a page or data source parent is currently required."
+   → 사람이 페이지 하나를 공유해 주는 단계는 자동화할 수 없다. README Quick Start 3단계가 그것이다.
+2. **본문에 존재하지 않는 페이지 참조가 있으면 `POST /v1/pages` 가 400 으로 거부한다** — fixture 의 합성 태그 `<unknown url=… alt="form"/>` 가
+   `Cannot create database reference: Block … does not exist in the current space` 를 냈다. 시딩기가 생성 시 이런 태그를 걷어내고,
+   모든 페이지가 생긴 뒤 2단계로 멘션을 실제 URL 로 다시 써 넣도록 고쳤다(멘션 42건 전부 해석, 미해석 0).
+3. **`GET /v1/pages/{id}/markdown` 은 멘션을 라벨 없이 자기닫는 태그로 돌려준다**: `<mention-page url="https://app.notion.com/p/<id>"/>`.
+   만들 때 `<mention-page url="…">제목</mention-page>` 로 보내도 저장되는 것은 참조뿐이고, 표시 텍스트는 대상 페이지의 제목에서 온다.
+   URL 도 `app.notion.com/p/<id>` 로 정규화된다.
+
+**발견한 결함 (`[fix]` 완료)**: `sync.js` 의 멘션 정규식이 **여는·닫는 태그 쌍만** 받았다
+(`/<(page|mention-page) url="…"[^>]*>([^<]*)<\/\1>/`). 실 Notion 은 자기닫는 형태로 주므로 **실제 미러에서는 멘션 옆
+"([제목](../카테고리/파일.md))" 보강이 전부 빠졌다.** 위키 합성기가 "이 멘션이 어느 원문인가" 를 알 수 없게 되는, 조용한 품질 저하다.
+fixture 만으로는 절대 드러나지 않았다 — fixture 가 문서 예시의 쌍 형태만 담고 있었기 때문이다.
+- 수정: 정규식이 두 형태를 모두 받고, 라벨이 없으면 **대상 페이지 제목**을 링크 텍스트로 쓴다. 로직을 순수 함수 `appendMentionLinks` 로 분리해 단위 테스트 가능하게 했다.
+- fixture 한 건(`9월 신규 가입 프로모션`)을 자기닫는 형태로 바꿔 **골든이 현실을 담게** 했고, T4 에 두 형태·미러 밖 대상·자기 참조·표 셀을 검사하는 회귀 테스트를 넣었다.
+- 재실측: 실 워크스페이스 `sync --full` 후 멘션 42건 전부 상대 경로가 붙었다.
+
+**미러 검증 (실 Notion vs fixture 골든)**: 33개 페이지 전부 대응, 서비스·카테고리 분류 동일,
+`doc_type`·`status`·`summary`·`keywords`·`tags`·`review_by`·`verified_at`·`sensitivity`·`meta_source` **전부 일치**.
+수치도 같다 — 추가 33 · 제외 2(민감 1, 위키제외 1) · 컨테이너 12 · 범위 밖 1 · 실패 0.
+lint 경고도 같은 4건(meta 없는 레거시 3 + 검토기한 경과 1). 남은 본문 차이는 파일명의 실제 id, 멘션 태그 형태,
+시딩에서 제외한 합성 블록, 그리고 **Notion 이 표 `<tr>`·`<td>` 를 들여쓰기 없이 돌려주는 것**(N18) 뿐이다.
+
+**변경 파일**: `plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/sync.js`(정규식·순수 함수 분리),
+`test/fixtures/pages-routinefit.json`, `raw/routinefit/marketing/9월-신규-가입-프로모션-555555.md`(골든 재생성),
+`test/sync.test.js`(T4 회귀), `test/helpers/seed-notion.js`(신규), `docs/TRD.md` 3.1 N17~N19, `.gitignore`.
+
+**검증**: `npm test` **99/99**, `npm run lint` 오류 0, 저장소 색인 재생성 diff 없음.
+실 워크스페이스에서 `check-notion` → `sync --full` → `build-index` → `lint` 까지 통과.
+
+**남은 것**: 위키 합성(`ingest`)과 게시(`publish`) 를 실 미러에 대해 수행 중이다. 결과는 이 항목에 이어 적는다.
+
 ### `[chore]` 연결 점검 스크립트 `check-notion.js` · 상태: `완료`
 
 **요청**: "실 노션 워크스페이스로 테스트할 수 있게 토큰 설정 방법 알려줘." (2026-09-10)

@@ -22,3 +22,6 @@ desktop.ini
 .omc/
 
 # 참고: raw/.sync-state.json 과 wiki/.publish-state.json 은 의도적으로 커밋한다 (docs/TRD.md 4절)
+
+# 실 워크스페이스 시딩 상태 (실제 페이지 id — 재현용이 아니다)
+.seed-state.json

@@ -36,6 +36,23 @@ function markdownCalls(client) {
   return client.stats().byPath['GET /v1/pages/{id}/markdown'] || 0;
 }
 
+test('T4 sync: 멘션 태그 — 실 Notion 의 자기닫는 형태와 문서 예시의 쌍 형태를 모두 상대 경로로 보강한다 (TRD N17)', () => {
+  const { appendMentionLinks } = require('../plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/sync');
+  const planned = new Map([
+    ['aaaaaaaa-0000-4000-8000-000000000111', { relPath: 'raw/routinefit/legal/구독-환불-규정-abc123.md', title: '구독 환불 규정' }],
+  ]);
+  const fromRel = 'raw/routinefit/cs/환불-처리-응대-가이드-xyz789.md';
+  const selfClosing = appendMentionLinks({ body: '근거는 <mention-page url="https://app.notion.com/p/aaaaaaaa000040008000000000000111"/> 다.', fromRel, planned });
+  assert.equal(selfClosing, '근거는 <mention-page url="https://app.notion.com/p/aaaaaaaa000040008000000000000111"/> ([구독 환불 규정](../legal/구독-환불-규정-abc123.md)) 다.');
+  const paired = appendMentionLinks({ body: '<mention-page url="https://www.notion.so/w/aaaaaaaa000040008000000000000111">환불 규정</mention-page>', fromRel, planned });
+  assert.match(paired, /<\/mention-page> \(\[환불 규정\]\(\.\.\/legal\/구독-환불-규정-abc123\.md\)\)$/);
+  const unknown = '<mention-page url="https://app.notion.com/p/ffffffff000040008000000000000999"/>';
+  assert.equal(appendMentionLinks({ body: unknown, fromRel, planned }), unknown, '미러에 없는 대상은 그대로');
+  const selfRef = '<mention-page url="https://app.notion.com/p/aaaaaaaa000040008000000000000111"/>';
+  assert.equal(appendMentionLinks({ body: selfRef, fromRel: 'raw/routinefit/legal/구독-환불-규정-abc123.md', planned }), selfRef, '자기 자신은 그대로');
+  assert.equal(appendMentionLinks({ body: '<td>텍스트</td>', fromRel, planned }), '<td>텍스트</td>', '표 셀은 건드리지 않는다');
+});
+
 test('T4 sync: mock 워크스페이스 → raw/ 가 커밋된 골든과 바이트 단위로 일치한다', async () => {
   const { rootDir } = await syncOnce();
   const golden = listFiles(path.join(REPO_ROOT, 'raw'));

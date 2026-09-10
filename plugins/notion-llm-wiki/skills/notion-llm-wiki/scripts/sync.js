@@ -49,6 +49,22 @@ function matchCategory(cfg, title) {
 }
 
 const FILE_TAG_RE = /!\[|<(?:file|pdf|video|audio)\s/;
+// 멘션·하위 페이지 태그. **실 Notion 은 라벨 없이 자기닫는 형태로 돌려준다** (2026-09-10 실측):
+//   <mention-page url="https://app.notion.com/p/<id>"/>
+// 문서 예시의 여는·닫는 쌍(<mention-page url="…">제목</mention-page>) 도 함께 받는다.
+const MENTION_TAG_RE = /<(page|mention-page)\s+url="([^"]+)"[^>]*?(?:\/>|>([^<]*)<\/\1>)/g;
+
+// 본문의 멘션 옆에 미러 안 상대 경로를 덧붙인다 — 위키 합성기가 "이 멘션이 어느 원문인가" 를 알 수 있게.
+// planned: 페이지 id → { relPath, title }. 자기닫는 태그에는 라벨이 없으므로 대상 제목을 쓴다.
+function appendMentionLinks({ body, fromRel, planned, pageIdFromUrl: idFromUrl = pageIdFromUrl }) {
+  return String(body || '').replace(MENTION_TAG_RE, (whole, _tag, url, text) => {
+    const target = idFromUrl(url);
+    const p = target ? planned.get(target) : null;
+    if (!p || p.relPath === fromRel) return whole;
+    const rel = path.posix.relative(path.posix.dirname(fromRel), p.relPath);
+    return `${whole} ([${(text || '').trim() || p.title}](${rel}))`;
+  });
+}
 
 async function runSync({ cfg, client, rootDir = cfg.rootDir, nowIso = () => new Date().toISOString(), clock = () => Date.now(), full = false, log = () => {} }) {
   const started = clock();
@@ -202,18 +218,8 @@ async function runSync({ cfg, client, rootDir = cfg.rootDir, nowIso = () => new 
     active.push({ ...e, relPath });
   }
 
-  function relLink(fromRel, toRel) {
-    return path.posix.relative(path.posix.dirname(fromRel), toRel);
-  }
-
   function postProcessBody(body, fromRel) {
-    const re = /<(page|mention-page) url="([^"]+)"[^>]*>([^<]*)<\/\1>/g;
-    return body.replace(re, (whole, _tag, url, text) => {
-      const target = pageIdFromUrl(url);
-      const p = target ? planned.get(target) : null;
-      if (!p || p.relPath === fromRel) return whole;
-      return `${whole} ([${text || p.title}](${relLink(fromRel, p.relPath)}))`;
-    });
+    return appendMentionLinks({ body, fromRel, planned });
   }
 
   // ---- 3~4. 변경 판정 · 쓰기 ----
@@ -331,4 +337,4 @@ if (require.main === module) {
   main(process.argv.slice(2)).catch((err) => { console.error(err.message); process.exit(1); });
 }
 
-module.exports = { runSync, loadState, sortedJson, STATE_FILE, STATE_VERSION, REPORT_FILE, matchCategory, titleOf };
+module.exports = { runSync, loadState, sortedJson, appendMentionLinks, MENTION_TAG_RE, STATE_FILE, STATE_VERSION, REPORT_FILE, matchCategory, titleOf };
