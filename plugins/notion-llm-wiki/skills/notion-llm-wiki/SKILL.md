@@ -44,6 +44,15 @@ Notion(원본) → `raw/`(미러) → `wiki/`(합성) → Notion(게시) 의 한
 
 ## `sync`
 
+**실 워크스페이스에 처음 붙이는 경우**, 또는 권한·설정 문제가 의심되면 먼저 읽기 전용 점검을 돌린다:
+
+```
+node ${CLAUDE_SKILL_DIR}/scripts/check-notion.js
+```
+
+연결 이름·사용자 수·접근 가능한 페이지 수·서비스 루트와 위키 루트가 보이는지·속성 이름 매핑을 확인해 준다.
+`접근 범위 페이지 0개` 면 Notion 페이지에 **연결을 추가하지 않은 것**이다(가장 흔한 원인). 그 사실을 그대로 전한다.
+
 ```
 node ${CLAUDE_SKILL_DIR}/scripts/sync.js [--full]
 ```

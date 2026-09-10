@@ -1,6 +1,6 @@
 {
   "name": "notion-llm-wiki",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Notion 실무 문서를 로컬 raw/ 미러로 동기화하고, Claude Code 가 LLM wiki 를 합성해 출처를 달아 답하고(notion-llm-wiki), 사람이 준 내용으로 규약을 지킨 Notion 페이지 초안을 만들어 검토 후 게시한다(notion-draft). RAG·임베딩 없이 색인 → 위키 → 원문 grep 순서로 찾는다. Node.js 22+, 외부 의존성 0개.",
   "author": {
     "name": "Wondeuk Yoon",

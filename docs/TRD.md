@@ -433,6 +433,17 @@ fixture(`workspace.json`) 를 읽어 다음을 흉내 내는 `fetch` 함수를 �
 `POST /v1/pages`, `PATCH /v1/pages/{id}/markdown`, 그리고 옵션으로 **N번째 요청에 429 + Retry-After**.
 쓰기 요청은 메모리 상의 워크스페이스를 바꾸고 기록한다 (A11 의 요청 수 검증).
 
+### 6.7.1 `check-notion.js` — 연결 점검 (읽기 전용)
+
+```
+check-notion.js [--json] [--root <dir>]
+```
+
+`GET /v1/users/me`(연결 이름) → `GET /v1/users`(담당자 해석 가능 여부) → `POST /v1/search` 2회(접근 범위) →
+`GET /v1/data_sources/{첫 DB}`(속성 이름 매핑 대조). **쓰기 호출 경로가 없다.** 실 워크스페이스에 처음 붙일 때
+"무엇이 안 보이는가" 를 먼저 알려 주는 것이 목적이다 — 가장 흔한 실패는 연결을 페이지에 추가하지 않은 것(N12)이고,
+그때 `sync` 는 "발견 0" 이라는 모호한 결과를 낸다. 이 스크립트는 그 상태를 이름으로 말한다.
+
 ### 6.8 `draft-new.js` — 골격 초안 만들기
 
 ```

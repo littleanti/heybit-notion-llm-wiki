@@ -88,8 +88,30 @@ Claude Code 안에 이미 들어와 있다면 `/plugin marketplace add littleant
 
 </details>
 
+### 설정이 맞았는지 확인 (읽기만 합니다)
+
+작업 폴더에서 아래를 실행하면 **아무것도 바꾸지 않고** 연결 상태만 알려 줍니다. Claude 에게 **"노션 연결 확인해줘"** 라고 해도 됩니다.
+
+```bash
+node <플러그인 경로>/skills/notion-llm-wiki/scripts/check-notion.js
+```
+
+이 저장소를 clone 해서 쓰는 경우에는 `npm run check` 로 같은 일을 합니다. 이렇게 나오면 성공입니다.
+
+```
+연결      LLM Wiki · type=bot
+사용자    12명 — 담당자(people) 속성을 쓰려면 필요하다
+접근 범위  페이지 34개 · 데이터베이스(data source) 6개
+서비스     루틴핏 (routinefit) — 보인다: "루틴핏"
+위키 루트   보인다: "LLM Wiki"
+속성 매핑   "루틴핏 · CS" 의 속성 14개 확인
+          → 설정의 모든 속성 이름이 이 DB 에 있다
+호출 5회. 쓰기는 하지 않았다.
+```
+
 **막히면**: `NOTION_TOKEN 이 없습니다` → 3단계의 `.env` 를 확인하세요.
-`카테고리 페이지를 찾을 수 없다` → Notion 페이지에 **연결 추가**(3단계 2번)를 안 한 경우입니다.
+`API token is invalid` → 토큰 값이 잘못됐습니다. `ntn_` 으로 시작하는 값을 그대로 붙여넣었는지 보세요.
+`접근 범위 페이지 0개` 또는 `카테고리 페이지를 찾을 수 없다` → Notion 페이지에 **연결 추가**(3단계 2번)를 안 한 경우입니다.
 `중단:` 으로 시작하는 메시지가 나오면 **아무것도 쓰이지 않은 상태**입니다. 메시지에 이유와 다음 할 일이 적혀 있습니다.
 
 ---
@@ -173,7 +195,7 @@ heybit-notion-llm-wiki/
 │   ├── skills/notion-llm-wiki/        ★ 스킬 ① Notion → 위키
 │   │   ├── SKILL.md                   /notion-llm-wiki <sync|ingest|query|lint|publish>. 스크립트는 ${CLAUDE_SKILL_DIR}/scripts/…
 │   │   ├── references/                wiki-schema(위키 규칙 정본) · ingest/query 절차 · 의미 lint · 실무자 안내
-│   │   └── scripts/                   sync.js · build-index.js · lint.js · publish.js · register-legacy.js · lib/
+│   │   └── scripts/                   check-notion.js · sync.js · build-index.js · lint.js · publish.js · register-legacy.js · lib/
 │   └── skills/notion-draft/           ★ 스킬 ② 입력 → Notion
 │       ├── SKILL.md                   /notion-draft <new|edit|submit>
 │       ├── references/                draft-templates(유형 9종 골격) · draft-procedure(절차)
@@ -224,6 +246,13 @@ npm test                 # 토큰 없이 전 기능이 fixture 로 검증된다
    기존 일반 페이지는 옮기지 말고 `register-legacy` 로 등록 항목을 만든다([DESIGN 1.3](./docs/DESIGN.md#13-레거시-페이지-등록-절차)).
 4. **설정** — `notion-wiki.config.json` 의 `services[].rootPageId`, `wiki.rootPageId` 를 실제 페이지 id 로 바꾼다.
    속성 이름이 다르면 `properties` 매핑을 고친다. `sync.excludeWhenUnset` 을 `true` 로 하면 비밀등급이 비어 있는 페이지를 제외한다.
+   페이지 id 는 Notion URL 끝의 32자리 16진수다. URL 에서 뽑으려면:
+   ```bash
+   node -e "console.log(require('./plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/lib/meta').pageIdFromUrl(process.argv[1]))" "<붙여넣은 Notion URL>"
+   ```
+5. **확인** — `npm run check` (읽기 전용). 연결 이름·사용자 수·접근 가능한 페이지·서비스/위키 루트·속성 매핑을 점검한다.
+   여기서 통과하면 `npm run sync` 로 넘어간다. **첫 실행은 `sync` 까지만** 하고 결과를 보는 것을 권한다 —
+   `sync` 는 읽기 전용이고, 쓰기는 `publish --apply` 와 `draft-submit --apply` 뿐이다.
 
 ### 5.3 `notion-wiki.config.json` 요약
 
@@ -280,6 +309,7 @@ npm test                 # 토큰 없이 전 기능이 fixture 로 검증된다
 ### 스크립트만 쓸 때
 
 ```bash
+npm run check                               # 읽기 전용. 토큰·연결·설정이 맞는지 먼저 확인
 npm run sync                                # NOTION_TOKEN 필요. raw/ 와 리포트 갱신
 npm run index                               # raw/wiki frontmatter → wiki/index.md (결정적)
 npm run lint                                # 오류가 있으면 종료 코드 1, 경고만 있으면 0
