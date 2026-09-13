@@ -5,7 +5,7 @@ RAG·임베딩 없이 색인 → 위키 → 원문 grep 순서로 찾는다. Nod
 
 | 스킬 | 방향 | 서브커맨드 |
 |---|---|---|
-| `notion-llm-wiki` | Notion → 위키 | `sync` · `ingest` · `query` · `lint` · `publish` |
+| `notion-llm-wiki` | Notion → 위키 | `setup` · `sync` · `ingest` · `query` · `lint` · `publish` |
 | `notion-draft` | 입력 → Notion | `new` · `edit` · `submit` |
 
 설계 문서·샘플 데이터·테스트는 상위 저장소 [littleanti/heybit-notion-llm-wiki](https://github.com/littleanti/heybit-notion-llm-wiki) 에 있다.
@@ -23,25 +23,67 @@ Claude Code 안에서는 `/plugin marketplace add littleanti/heybit-notion-llm-w
 
 비개발자용 단계별 안내는 상위 저장소 README 의 [⚡ Quick Start](https://github.com/littleanti/heybit-notion-llm-wiki#-quick-start-5분-개발-지식-없이).
 
-## 위키를 둘 프로젝트에서 준비할 것
+## 처음 한 번 — `setup`
 
-플러그인은 **현재 작업 디렉터리**를 위키 작업 공간으로 본다. 그 디렉터리에:
+위키를 둘 폴더에서 `claude` 를 열고 이렇게만 하면 된다.
+
+```
+/notion-llm-wiki setup
+```
+
+스킬이 **물어보고 만들어 준다**:
+
+1. **작업 위치** — `.env`·설정이 놓이고 `raw/`·`wiki/`·`drafts/` 가 생길 폴더 (기본: 현재 폴더)
+2. **동기화 대상** — 서비스 상위 페이지 URL(1개 이상)과 위키를 게시할 **빈 페이지** URL. URL 을 그대로 주면 id 를 뽑아 `notion-wiki.config.json` 을 만든다
+3. **Notion 토큰** — `.env` 를 만들고 **넣는 방법을 묻는다.** 직접 붙여넣기(권장 — 토큰이 대화 기록에 남지 않는다) 또는 대화로 전달
+4. 끝나면 읽기 전용 점검(`check-notion.js`)으로 연결·권한·속성 이름을 확인해 준다
+
+말로 해도 된다 — `"노션 연결 설정해줘"`, `"처음인데 어떻게 시작해?"`.
+
+### 파일이 어디에 생기나
+
+**`claude` 를 실행한 폴더**가 기준이다 (`process.cwd()`). 플러그인 설치 폴더에는 아무것도 쓰지 않는다.
+
+```
+<작업 폴더>/
+├── .env                      토큰 (커밋 금지)
+├── notion-wiki.config.json   설정
+├── raw/                      sync 결과 — Notion 미러 (읽기 전용)
+├── wiki/                     ingest 결과
+└── drafts/                   초안
+```
+
+`setup` 은 **설정이 아직 없는 폴더에서** 무엇을 하기 전에 어디에 만들지 먼저 알리고,
+홈 디렉터리·플러그인 폴더 안·이미 다른 프로젝트(`package.json` 등)면 경고한다. 이미 준비된 곳에서는 조용하다.
+
+다른 폴더를 쓰려면 `--root <경로>` 를 **모든 스크립트에 매번** 붙인다. 번거로우면 그 폴더에서 `claude` 를 다시 연다.
+디렉터리 이름은 `notion-wiki.config.json` 의 `paths` 로 바꾼다.
+
+> **Notion 쪽에서 사람이 해야 하는 것 하나**: 서비스 상위 페이지와 위키 루트 페이지에서 `•••` → `연결` → 만든 연결을 추가한다
+> (하위 페이지는 상속된다). 내부 연결은 기본적으로 아무 페이지도 볼 수 없어서 이게 빠지면 페이지가 0개로 나온다.
+> 연결 권한에 **사용자 정보**를 포함해야 담당자(people) 속성을 쓸 수 있다.
+> DB 스키마: [DESIGN 1절](https://github.com/littleanti/heybit-notion-llm-wiki/blob/main/docs/DESIGN.md#1-notion-데이터베이스-스키마).
+
+<details>
+<summary>손으로 준비하고 싶을 때</summary>
+
+플러그인은 **현재 작업 디렉터리**를 위키 작업 공간으로 본다. 그 디렉터리에 두 파일을 두면 `setup` 없이도 된다.
 
 1. `notion-wiki.config.json` — 서비스·카테고리·속성 매핑·위키 루트 페이지 id.
-   상위 저장소의 [`notion-wiki.config.json`](https://github.com/littleanti/heybit-notion-llm-wiki/blob/main/notion-wiki.config.json) 을 복사해 id 만 바꾸면 된다.
+   플러그인의 [`templates/notion-wiki.config.json`](./templates/notion-wiki.config.json) 또는
+   상위 저장소의 [`notion-wiki.config.json`](https://github.com/littleanti/heybit-notion-llm-wiki/blob/main/notion-wiki.config.json) 을 복사해 id 만 바꾼다.
 2. `.env` — `NOTION_TOKEN=…` (내부 연결 토큰). **커밋하지 않는다.** `sync`·`edit`·`submit`·`publish --apply` 가 토큰을 쓴다.
-3. Notion 쪽 — 서비스 상위 페이지들과 위키 루트 페이지에 연결을 추가하고, 카테고리마다 데이터베이스를 만든다.
-   연결 권한에 **사용자 정보**를 포함해야 담당자(people) 속성을 쓸 수 있다.
-   절차: [README 5.2](https://github.com/littleanti/heybit-notion-llm-wiki#52-notion-쪽-준비-실제-워크스페이스에-붙일-때),
-   DB 스키마: [DESIGN 1절](https://github.com/littleanti/heybit-notion-llm-wiki/blob/main/docs/DESIGN.md#1-notion-데이터베이스-스키마).
 
 `raw/`, `wiki/`, `drafts/` 디렉터리는 스킬이 만든다.
+
+</details>
 
 ## 사용
 
 말로 시켜도 되고(`"노션 위키 동기화해"`, `"이 내용으로 FAQ 만들어줘"`), 스킬을 직접 불러도 된다.
 
 ```
+/notion-llm-wiki setup                처음 준비 — 작업 위치·동기화 대상·토큰을 묻고 연결을 확인한다
 /notion-llm-wiki sync [--full]        Notion → raw/ 증분 동기화
 /notion-llm-wiki ingest [--full]      변경분을 읽어 wiki/ 갱신 → 색인 → lint → log
 /notion-llm-wiki query <질문>          색인 → 위키 → 원문 순으로 찾아 출처·상태·동기화 시각과 함께 답한다
@@ -65,6 +107,8 @@ Claude Code 안에서는 `/plugin marketplace add littleanti/heybit-notion-llm-w
 
 ```bash
 S=<플러그인 경로>/skills
+node $S/notion-llm-wiki/scripts/setup.js --status
+node $S/notion-llm-wiki/scripts/check-notion.js
 node $S/notion-llm-wiki/scripts/sync.js [--full]
 node $S/notion-llm-wiki/scripts/build-index.js
 node $S/notion-llm-wiki/scripts/lint.js [--json] [--strict]

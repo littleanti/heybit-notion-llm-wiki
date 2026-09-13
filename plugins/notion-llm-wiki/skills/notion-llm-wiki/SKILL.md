@@ -1,8 +1,8 @@
 ---
 name: notion-llm-wiki
-description: Notion 실무 문서를 로컬 raw/ 미러로 동기화(sync)하고, 변경분을 읽어 LLM wiki 를 합성(ingest)하고, 위키에서 질문에 출처를 달아 답하고(query), 구조·의미 lint 를 돌리고(lint), 위키를 Notion 에 게시(publish)한다. "위키 동기화해", "노션에서 ~ 찾아줘/검색해", "위키 갱신/합성해", "위키 게시해", "위키 점검해" 같은 요청에 쓴다. RAG·임베딩 없이 색인 → 위키 → 원문 grep 순서로 찾는다.
-argument-hint: "<sync|ingest|query|lint|publish> [--full | --apply | 질문]"
-allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*) Bash(node "${CLAUDE_SKILL_DIR}/scripts/*) Read Grep Glob Write Edit
+description: Notion 실무 문서를 로컬 raw/ 미러로 동기화(sync)하고, 변경분을 읽어 LLM wiki 를 합성(ingest)하고, 위키에서 질문에 출처를 달아 답하고(query), 구조·의미 lint 를 돌리고(lint), 위키를 Notion 에 게시(publish)한다. 처음 쓸 때는 작업 위치·동기화 대상·토큰을 물어 작업 공간을 준비한다(setup). "위키 동기화해", "노션에서 ~ 찾아줘/검색해", "위키 갱신/합성해", "위키 게시해", "위키 점검해", "노션 연결해줘/설정해줘", "처음인데 어떻게 시작해" 같은 요청에 쓴다. RAG·임베딩 없이 색인 → 위키 → 원문 grep 순서로 찾는다.
+argument-hint: "<setup|sync|ingest|query|lint|publish> [--full | --apply | 질문]"
+allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/*) Bash(node "${CLAUDE_SKILL_DIR}/scripts/*) Read Grep Glob Write Edit AskUserQuestion
 ---
 
 # notion-llm-wiki
@@ -15,6 +15,7 @@ Notion(원본) → `raw/`(미러) → `wiki/`(합성) → Notion(게시) 의 한
 
 | `$0` | 하는 일 | 주체 | 필요한 것 |
 |---|---|---|---|
+| `setup` | **처음 준비** — 작업 위치·동기화 대상·토큰을 물어 `notion-wiki.config.json`·`.env` 를 만들고 연결을 확인한다 | **Claude (나)** + 스크립트 | `references/setup-procedure.md` |
 | `sync` | Notion → `raw/` 증분 동기화 | 스크립트 | `NOTION_TOKEN` |
 | `ingest` | `raw/.sync-report.md` 의 변경분을 읽어 `wiki/` 갱신, 색인·lint·log | **Claude (나)** | `references/wiki-schema.md`, `references/ingest-procedure.md` |
 | `query` | 질문에 출처를 달아 답한다 | **Claude (나)** | `references/query-procedure.md` |
@@ -30,7 +31,7 @@ Notion(원본) → `raw/`(미러) → `wiki/`(합성) → Notion(게시) 의 한
   (이 스킬의 권한 사전 승인은 `node ${CLAUDE_SKILL_DIR}/scripts/…` 로 **시작하는 단독 명령**에만 걸린다. 복합 명령이나 다른 표기는 승인 프롬프트를 만들고,
   비대화형 실행에서는 거부된다.)
 - 다른 디렉터리를 대상으로 할 때만 옵션 `--root <프로젝트 디렉터리>` 를 **뒤에** 붙인다.
-- `notion-wiki.config.json` 이 없으면 만들라고 안내하고 멈춘다 — 샘플 저장소 heybit-notion-llm-wiki 의 것을 복사해 id 만 바꾸면 된다.
+- `notion-wiki.config.json` 이나 `.env` 가 없으면 **`setup` 으로 간다.** 사람에게 손으로 만들라고 하지 않는다.
 - `npm run sync|index|lint|publish:wiki` 는 샘플 저장소 안에서만 존재한다. 이 스킬은 항상 위의 `node` 명령을 쓴다.
 
 ## 절대 규칙 (모든 서브커맨드 공통)
@@ -39,8 +40,38 @@ Notion(원본) → `raw/`(미러) → `wiki/`(합성) → Notion(게시) 의 한
 2. **위키에는 원본에 있는 것만 쓴다.** 종합·비교는 하되 새 결론을 만들지 않는다. 추론은 `> 추론:` 으로 분리한다.
 3. **모든 서술에 출처.** H2 섹션마다 링크 1개 이상 — raw 원본 우선, 해당 사항이 없는 섹션은 위키·색인 링크로 대신한다(`references/wiki-schema.md` 6절). 원본 `status` 가 `확정` 이 아니면 `(초안)` 등을 붙인다.
 4. **모순은 고르지 않고 기록한다.** 충돌 페이지에 양쪽을 출처와 함께 적는다.
-5. **토큰을 출력하지 않는다.** `.env` 를 읽거나 인용하지 않는다.
+5. **토큰을 출력하지 않는다.** `.env` 를 읽거나 인용하지 않는다. 사람이 대화로 토큰을 준 경우에도
+   값을 되풀이하지 않고, `setup --set-token` 에 쓴 임시 파일은 남기지 않는다 (스크립트가 지운다).
 6. **삭제는 사람이 결정한다.** 위키 페이지·Notion 페이지를 지우려면 운영자에게 먼저 묻는다.
+
+## `setup`
+
+**처음 쓰는 사람의 진입점이다.** 설정이나 토큰이 없어서 다른 서브커맨드가 멈췄을 때도 여기로 온다.
+
+**먼저 읽는다**: `references/setup-procedure.md` — 무엇을 어떤 순서로 묻는지가 거기 정본으로 있다.
+
+```
+node ${CLAUDE_SKILL_DIR}/scripts/setup.js --status
+```
+
+아무것도 바꾸지 않고 현재 상태만 본다. 이걸 먼저 돌리고 나서 사람에게 묻는다.
+
+절차 요약 (상세는 setup-procedure.md):
+
+1. **작업 위치를 묻는다** — `.env`·설정·`raw/`·`wiki/` 가 놓일 디렉터리. 기본은 현재 작업 디렉터리다.
+   설정이 없으면 스크립트가 `⚠ 작업 위치를 확인한다` 블록을 낸다. **그대로 사람에게 전하고 확인받은 뒤 진행한다.**
+   다른 곳이면 이후 모든 명령에 `--root <경로>` 를 매번 붙인다.
+2. **동기화 대상을 묻는다** — 서비스 상위 페이지 URL(1개 이상)과 위키 루트 페이지 URL(정확히 1개, 빈 페이지, 서비스 루트와 달라야 한다).
+   Notion 쪽 **연결 추가**가 빠지면 아무것도 안 보인다는 것을 함께 알린다.
+3. `--init-config --service "<slug>|<이름>|<URL>" --wiki-root "<URL>"` 로 설정을 만든다. **이미 있으면 덮어쓰지 않는다.**
+4. `--init-env` 로 `.env` 를 만들고, **토큰을 넣는 방법을 묻는다** — 직접 붙여넣기(권장, 대화 기록에 안 남는다) /
+   대화로 알려주기(`--set-token --token-file <임시 파일>`, 스크립트가 기록 후 그 파일을 지운다).
+   토큰을 **명령줄 인자로 넘기지 않는다.** 임시 파일은 **프로젝트 밖**에 `.tmp`/`.token` 이름으로 만든다 —
+   스크립트는 그 두 확장자만 지우므로, 다른 이름을 주면 읽지도 지우지도 않고 중단한다.
+5. `check-notion.js` 로 연결을 확인하고, 결과를 그대로 전한다 (`접근 범위 페이지 0개` 면 연결 추가가 빠진 것이다).
+6. `sync` 를 이어서 할지 **묻는다.** 시키지 않은 `sync` 를 하지 않는다.
+
+**스크립트는 사람에게 묻지 않는다** — 비대화형 실행에는 stdin 이 없다. 묻는 것은 전부 내가 한다.
 
 ## `sync`
 
@@ -61,7 +92,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/sync.js [--full]
 2. `raw/.sync-report.md` 를 읽고 **실패**·**절단(truncated)**·**meta 없음** 항목이 있으면 운영자에게 알린다
    (실패는 다음 실행에서 재시도된다. meta 없음은 레거시 등록이 필요하다는 뜻이다 — `references/notion-authoring.md`).
 3. 변경이 있으면 "`ingest` 를 이어서 할까요?" 라고 묻는다. 시키지 않은 ingest 를 하지 않는다.
-4. `NOTION_TOKEN` 이 없다는 메시지가 나오면 `.env.example` 절차를 안내하고 멈춘다.
+4. `NOTION_TOKEN` 이 없다는 메시지가 나오면 **`setup` 으로 간다** (`references/setup-procedure.md` 4번).
 
 ## `ingest`
 

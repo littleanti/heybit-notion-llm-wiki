@@ -2,6 +2,11 @@
 .env
 .env.local
 .env.*.local
+# setup --set-token 이 쓰는 임시 토큰 파일 (정상 경로에서는 즉시 지워지지만 방어선을 하나 더 둔다.
+# *.tmp 는 아래 "임시" 절에 이미 있다)
+*.token
+token*.txt
+notion-token*
 
 # Node
 node_modules/

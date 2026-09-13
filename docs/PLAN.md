@@ -38,6 +38,7 @@ Notion API 를 호출하는 모든 경로는 fixture(mock) 로 검증하고, 실
 | P9 | GitHub public 저장소 생성 · push · CI 통과 확인 | Actions 실행 결과 | `완료` |
 | P10 | **Claude Code 플러그인 패키징** — 스킬을 `plugins/notion-llm-wiki/skills/` 로 옮기고 marketplace 등록, `${CLAUDE_SKILL_DIR}` 경로화 | `claude plugin validate --strict` · `--plugin-dir` 로 로드 · `npm test` · CI | `완료` |
 | P11 | **작성 스킬 `notion-draft`** — 입력 → 규약을 지킨 로컬 초안 → 사람 검토 → Notion 게시 (신규 생성 + 기존 수정) | `npm test`(T19~T23) · `plugin validate --strict` · mock 게시·수정 왕복 | `완료` |
+| P12 | **온보딩 `setup`** — 작업 위치·sync 대상·토큰을 물어 `notion-wiki.config.json`·`.env` 를 만들고 `check-notion` 으로 확인 | `npm test`(T24) · `plugin validate --strict` · 빈 디렉터리에서 `setup` 왕복 실측 | `완료` |
 
 ---
 
@@ -244,6 +245,71 @@ push 후: **CI run 34457349321 3 잡(test 22·24, plugin) 통과**, **GitHub 경
 `plugin validate --strict` 플러그인·마켓플레이스 통과. **도그푸딩**: `--plugin-dir` 로 로드한 헤드리스 세션에 회의 메모를 주자
 references 를 먼저 읽고 → `draft-new.js` 를 단독 명령으로 호출(권한 거부 0) → 섹션을 입력 내용만으로 채우고 → 모르는 것 7건을
 `미확정 · 열린 질문` 에 질문으로 남겼다. 그 산출물의 검증 결과는 **오류 0 · 경고 0**. 발견한 결함 3건은 [LOG P11](./LOG.md) 에.
+
+---
+
+## P12 — 온보딩 `setup` 서브커맨드
+
+**배경**: 플러그인만 설치한 사람에게는 **시작할 방법이 없다.** 사용자 지적(2026-09-13)으로 드러난 구멍 4개:
+
+1. 설치본(`plugins/notion-llm-wiki/`)에 `.env.example` 도 `notion-wiki.config.json` 템플릿도 **실리지 않는다.**
+   둘 다 상위 저장소 루트에만 있어서, 설치한 사람은 GitHub 를 열어 손으로 옮겨 적어야 한다.
+2. `setup`/`init` **진입점이 없다.** "설정해줘" 라고 말했을 때 스킬이 받을 서브커맨드가 없다.
+3. [SKILL.md](../plugins/notion-llm-wiki/skills/notion-llm-wiki/SKILL.md) 의 `sync` 4번 — "`NOTION_TOKEN` 이 없다는 메시지가
+   나오면 `.env.example` 절차를 안내하고 멈춘다" — 은 **설치본에 존재하지 않는 파일을 가리킨다.** 죽은 안내다.
+4. `check-notion.js`(커밋 `e5ec8cd`)는 `sync` 절 본문에만 묻혀 있어 **서브커맨드로 노출되지 않았다.**
+
+**`userConfig` 를 쓰지 않는 이유** (조사 2026-09-13, 공식 [plugins-reference](https://code.claude.com/docs/en/plugins-reference.md)):
+`plugin.json` 의 `userConfig` 는 설치 시 마스킹 입력 대화를 띄우고 `sensitive: true` 면 Keychain(또는 `~/.claude/.credentials.json`)에
+저장하는 **정식 기능이다.** 그러나 값이 도달하는 곳은 **훅 프로세스와 MCP/LSP 서버 서브프로세스뿐**이며
+("All values are exported to hook processes as `CLAUDE_PLUGIN_OPTION_<KEY>` environment variables"),
+셸에서 도는 필드는 `${user_config.*}` 치환을 **거부한다**(셸 인젝션 방지). sensitive 값은 스킬 본문 치환에서도 제외된다.
+이 스킬의 스크립트는 일반 Bash 툴 호출(`node ${CLAUDE_SKILL_DIR}/scripts/…`)로 돌기 때문에 **토큰을 받을 수 없다.**
+SessionStart 훅으로 평문 파일에 브리지하면 되지만, 그것은 [PRD DR1](./PRD.md#5-데이터--보안-요구사항-dr)(토큰은 `.env` 하나로만)을
+깨면서 얻는 것이 "설치 시 입력칸" 하나뿐이다. **채택하지 않는다** — 이 판단을 여기 남겨 다음에 다시 조사하지 않게 한다.
+
+**토큰을 대화로 받는 것을 기본으로 두지 않는 이유**: 사람이 채팅에 토큰을 붙여넣는 순간 그 값은 세션 transcript 에 평문으로 남고,
+Bash 명령 문자열에 들어가면 권한 프롬프트·훅 로그에도 남는다. DR1 의 "로그·리포트·상태 파일에 토큰을 남기지 않는다" 와 정면으로 어긋난다.
+그래서 `setup` 은 **두 경로를 사람에게 묻고**, 권장값은 사람이 직접 파일에 붙여넣는 쪽이다. 대화로 받는 경로도 남기되 위 사실을 함께 알린다.
+
+**작업**
+- `plugins/notion-llm-wiki/templates/notion-wiki.config.json` — 서비스·위키 루트 id 가 플레이스홀더인 템플릿. **설치본에 실린다.**
+- `plugins/notion-llm-wiki/templates/env.example` — 루트 `.env.example` 과 같은 내용. 점파일은 패키징에서 누락될 위험이 있어
+  **점 없는 이름**으로 싣고 `setup` 이 `.env` 로 옮겨 쓴다.
+- `scripts/setup.js` — 스캐폴딩. **스스로 대화하지 않는다** (비대화형 Bash 툴 호출에는 stdin 이 없다).
+  사람에게 묻는 것은 SKILL.md 의 Claude 가 하고, 이 스크립트는 받은 값을 파일로 만드는 일만 한다.
+  - `--status` — 작업 디렉터리 상태 출력: `notion-wiki.config.json` 유무·검증 결과, `.env` 유무, 토큰 채워짐 여부(**값은 출력하지 않는다**), `raw/`·`wiki/`·`drafts/` 유무
+  - `--init-config --service <이름>=<URL|id> [반복] --wiki-root <URL|id>` — 템플릿에서 설정 생성. URL 의 32자리 hex 를 id 로 뽑는다.
+    카테고리·속성·값 매핑은 템플릿 기본값을 그대로 쓴다. **이미 있으면 덮어쓰지 않고 중단한다.**
+  - `--init-env` — `.env` 를 `NOTION_TOKEN=` 빈 값으로 만든다. **이미 있으면 손대지 않는다.**
+  - `--set-token --token-file <경로>` — 그 파일의 첫 줄을 `.env` 의 `NOTION_TOKEN` 에 넣고 **그 파일을 지운다.**
+    토큰을 **인자로 받지 않는다**(프로세스 목록·셸 히스토리 노출 방지). 출력은 `토큰을 기록했다 (NN자, ntn_ 로 시작)` 처럼 **값을 노출하지 않는 형태**로만 한다.
+  - 모든 하위 동작은 `--root <디렉터리>` 를 따른다 (다른 스크립트와 같은 규약).
+- `references/setup-procedure.md` — 대화 절차 정본. ① **작업 위치 묻기** → ② **sync 대상 묻기**(서비스 상위 페이지 URL·위키 루트 URL) →
+  ③ 설정 생성 → ④ **토큰 넣는 방법 묻기**(직접 붙여넣기 / 대화로 전달) → ⑤ `check-notion.js` 로 확인 → ⑥ `sync` 를 이어서 할지 묻기
+- `SKILL.md` — 서브커맨드 표에 `setup` 추가, 절 신설. `sync` 4번의 죽은 안내를 `setup` 으로 돌린다.
+  절대 규칙 5(토큰 비출력)에 "`--set-token` 의 임시 파일도 남기지 않는다" 를 덧붙인다.
+- `plugins/notion-llm-wiki/README.md` — "위키를 둘 프로젝트에서 준비할 것" 을 `/notion-llm-wiki setup` 으로 대체하고 수동 절차는 접어 둔다.
+- `README.md` Quick Start 3단계 — 손으로 파일 두 개 만들기를 `setup` 안내로 바꾼다.
+- `docs/PRD.md` — FR9(온보딩) 추가, DR1 에 `setup` 의 토큰 취급 규칙 명시
+- `docs/TRD.md` — 파일 트리에 `templates/`·`setup.js` 반영
+- 테스트 **T24** — URL→id 추출(대시 유무·쿼리스트링·`app.notion.com`·`notion.so`), 템플릿 채우기, **기존 파일 비파괴**,
+  `--set-token` 이 토큰 파일을 지우는지, **출력 어디에도 토큰 값이 없는지**, `--status` 가 토큰 값을 찍지 않는지
+- 버전 0.3.0 (`package.json`·`plugin.json`·`marketplace.json`)
+
+**출구 조건**: `npm test` 전부 통과(T24 포함), `npm run lint` 오류 0, 색인 재생성 diff 없음,
+`claude plugin validate --strict` 통과, **빈 임시 디렉터리에서 `setup` 왕복 실측** —
+`--status`(아무것도 없음) → `--init-config` → `--init-env` → `--set-token` → `--status`(토큰 채워짐·값 비노출) 가 실제로 돌고,
+토큰 파일이 지워지며, 설치본 경로에 `templates/` 가 실리는지 확인한다.
+실 Notion 호출은 하지 않는다 — `check-notion.js` 는 2026-09-10 실측으로 확인된 경로다. → 커밋 16
+
+**상태: `완료`** (2026-09-13) — `npm test` **110/110**(T24 신규 10건), `npm run lint` 오류 0(경고 4는 샘플 데이터 기존 것),
+색인 재생성 diff 없음, `claude plugin validate --strict` **마켓플레이스·플러그인 둘 다 통과**.
+**빈 임시 디렉터리 왕복 실측**: `--status`(아무것도 없음) → `--init-config`(URL 에서 id 추출, 쿼리스트링 포함) → `--init-env`
+→ `--set-token` → `--status`(`준비됐다`) 가 실제로 돌았고, **토큰 파일은 지워졌으며 출력·`--json`·상태 리포트 어디에도 토큰 값이 0건**이다.
+**설치본 실측**: `claude --plugin-dir plugins/notion-llm-wiki` 헤드리스 세션이 스킬을 로드해 서브커맨드 표에 `setup` 을 포함해 출력했고,
+작업 공간 상태(설정 있음·`.env` 있음·`raw/` 없음)를 정확히 읽으면서 **"`.env` 있음 (내용은 안 봄)"** 이라고 답해 절대 규칙 5 를 지켰다.
+`templates/` 2개 파일이 `.gitignore` 에 걸리지 않는 것도 `git check-ignore` 로 확인했다 — 점 없는 `env.example` 이름을 쓴 이유다.
 
 ---
 

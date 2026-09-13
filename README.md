@@ -43,13 +43,51 @@ Claude Code 안에 이미 들어와 있다면 `/plugin marketplace add littleant
    권한은 **콘텐츠 읽기·삽입·업데이트**와 **사용자 정보**를 켭니다. 만들면 `ntn_...` 로 시작하는 **비밀 값**이 나옵니다.
 2. **문서를 담을 폴더에 연결 추가** — 팀의 서비스 상위 페이지에서 `•••` → `연결` → 방금 만든 연결을 추가합니다.
    (하위 페이지에는 자동으로 적용됩니다.) 위키를 게시할 **빈 페이지**도 하나 만들어 같은 방법으로 연결을 추가합니다.
-3. **작업 폴더 만들기** — 컴퓨터에 폴더 하나를 만들고(예: `내문서/heybit-wiki`) 그 안에 파일 두 개를 둡니다.
-   - `.env` — 한 줄만 적습니다: `NOTION_TOKEN=ntn_...` (1번에서 받은 값). **이 파일은 누구에게도 보내지 마세요.**
-   - `notion-wiki.config.json` — [이 저장소의 파일](./notion-wiki.config.json)을 복사해서, 서비스 이름과 페이지 주소(id)만 우리 것으로 바꿉니다.
-     페이지 id 는 Notion 페이지 URL 끝의 32자리 문자입니다. 어려우면 Claude 에게 **"이 URL 로 설정 파일 채워줘"** 라고 하면 해 줍니다.
+3. **작업 폴더 만들고 `setup` 부르기** — 컴퓨터에 폴더 하나를 만들고(예: `내문서/heybit-wiki`)
+   그 폴더에서 `claude` 를 연 다음, 이렇게만 치면 됩니다.
+
+   ```
+   /notion-llm-wiki setup
+   ```
+
+   나머지는 **Claude 가 물어봅니다**: 파일을 둘 위치 → 어느 Notion 페이지를 가져올지(URL 그대로 붙여넣으면 됩니다) →
+   토큰을 어떻게 넣을지. 설정 파일과 `.env` 를 만들어 주고, 마지막에 연결이 제대로 됐는지까지 확인해 줍니다.
+   말로 **"노션 연결 설정해줘"** 라고 해도 같습니다.
+
+   > **토큰은 직접 넣는 쪽을 권합니다.** Claude 가 만들어 준 `.env` 파일을 열어 `NOTION_TOKEN=` 뒤에 붙여넣고 저장하세요.
+   > 대화에 붙여넣으면 토큰이 대화 기록에 남습니다. 어느 쪽이든 `setup` 이 물어봅니다.
+   > 작업 폴더가 git 저장소면 `setup` 이 `.gitignore` 에 `.env` 를 넣어 줍니다. 아니면 경고만 합니다 —
+   > 나중에 저장소가 되면 직접 넣으세요. **누구에게도 보내지 마세요.**
 
 > 3번이 부담스러우면 이 저장소를 그대로 내려받아 **샘플 데이터로 먼저 구경**할 수 있습니다 → [3. 샘플 둘러보기](#3-샘플-둘러보기).
 > 토큰 없이도 구조와 결과물을 다 볼 수 있습니다.
+
+### 파일이 어디에 생기나 — 작업 폴더
+
+**`claude` 를 실행한 폴더**가 기준입니다. 플러그인이 설치된 곳(`~/.claude/plugins/cache/…`)에는 아무것도 쓰지 않습니다.
+
+```
+~/내문서/heybit-wiki/          ← 여기서 claude 를 실행했다면
+├── .env                      토큰 (커밋 금지)
+├── notion-wiki.config.json   setup 이 만든 설정
+├── raw/                      sync 결과 — Notion 원본 미러 (읽기 전용)
+├── wiki/                     ingest 결과 — 합성된 위키
+└── drafts/                   notion-draft 초안
+```
+
+폴더는 미리 만들지 않아도 됩니다. 스킬이 필요할 때 만듭니다.
+
+> **⚠ 코드 프로젝트 폴더에서 실행하지 마세요.** 그 프로젝트 안에 `raw/`·`wiki/`·`.env` 가 생깁니다.
+> **위키 전용 폴더를 따로 만들어** 거기서 `claude` 를 여는 게 가장 편합니다.
+> `setup` 도 아직 설정이 없는 폴더에서는 **어디에 만들지 먼저 알려 주고**, 위치가 수상하면(홈 디렉터리·
+> 플러그인 폴더 안·이미 다른 프로젝트) 경고합니다.
+
+**다른 폴더를 쓰려면** 모든 명령에 `--root <경로>` 를 붙여야 합니다 — `setup` 뿐 아니라
+`sync`·`ingest`·`lint`·`publish` 까지 **매번**. 번거로우면 그냥 그 폴더에서 `claude` 를 다시 여세요.
+
+`raw`·`wiki`·`drafts` 라는 이름은 `notion-wiki.config.json` 의 `paths` 로 바꿀 수 있습니다.
+
+**지금 어디인지 확인**: `/notion-llm-wiki setup` 을 부르면 첫 줄에 절대 경로가 나옵니다. 아무것도 바꾸지 않습니다.
 
 ### 4단계 — 말로 시키기
 
@@ -77,6 +115,7 @@ Claude Code 안에 이미 들어와 있다면 `/plugin marketplace add littleant
 말로 하는 대신 스킬을 직접 부를 수도 있습니다.
 
 ```
+/notion-llm-wiki setup             # 처음 준비 — 위치·대상·토큰을 묻고 연결 확인
 /notion-llm-wiki sync              # Notion → 내 컴퓨터로 가져오기
 /notion-llm-wiki query 환불 기한    # 찾아서 출처와 함께 답하기
 /notion-llm-wiki ingest            # 위키 다시 정리
@@ -93,7 +132,8 @@ Claude Code 안에 이미 들어와 있다면 `/plugin marketplace add littleant
 작업 폴더에서 아래를 실행하면 **아무것도 바꾸지 않고** 연결 상태만 알려 줍니다. Claude 에게 **"노션 연결 확인해줘"** 라고 해도 됩니다.
 
 ```bash
-node <플러그인 경로>/skills/notion-llm-wiki/scripts/check-notion.js
+node <플러그인 경로>/skills/notion-llm-wiki/scripts/setup.js --status   # 설정·토큰이 준비됐는지 (값은 안 보여 줍니다)
+node <플러그인 경로>/skills/notion-llm-wiki/scripts/check-notion.js     # 실제 Notion 연결 확인
 ```
 
 이 저장소를 clone 해서 쓰는 경우에는 `npm run check` 로 같은 일을 합니다. 이렇게 나오면 성공입니다.
@@ -109,7 +149,8 @@ node <플러그인 경로>/skills/notion-llm-wiki/scripts/check-notion.js
 호출 5회. 쓰기는 하지 않았다.
 ```
 
-**막히면**: `NOTION_TOKEN 이 없습니다` → 3단계의 `.env` 를 확인하세요.
+**막히면**: 먼저 `/notion-llm-wiki setup` 을 다시 부르세요 — 무엇이 빠졌는지 짚어 줍니다.
+`NOTION_TOKEN 이 없습니다` → 3단계의 `.env` 를 확인하세요.
 `API token is invalid` → 토큰 값이 잘못됐습니다. `ntn_` 으로 시작하는 값을 그대로 붙여넣었는지 보세요.
 `접근 범위 페이지 0개` 또는 `카테고리 페이지를 찾을 수 없다` → Notion 페이지에 **연결 추가**(3단계 2번)를 안 한 경우입니다.
 `중단:` 으로 시작하는 메시지가 나오면 **아무것도 쓰이지 않은 상태**입니다. 메시지에 이유와 다음 할 일이 적혀 있습니다.

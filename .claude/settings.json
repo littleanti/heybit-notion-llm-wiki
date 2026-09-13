@@ -9,5 +9,8 @@
   },
   "enabledPlugins": {
     "notion-llm-wiki@heybit-notion-llm-wiki": true
+  },
+  "permissions": {
+    "deny": ["Read(./.env)", "Read(**/.env)"]
   }
 }

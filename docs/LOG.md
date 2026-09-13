@@ -10,6 +10,142 @@
 
 ---
 
+## 2026-09-13
+
+### `[feat]` 작업 위치를 README 에 명시하고 `setup` 이 파일 만들기 전에 경고 · 상태: `완료`
+
+**요청**: "이런 설정법 내용 README에 넣고 setup할때도 경고로 띄워주게 해줘." (2026-09-13)
+
+**문제**: 모든 스크립트가 `--root` 없으면 `process.cwd()` 를 쓴다 — 즉 **`claude` 를 실행한 폴더**가 기준이다.
+이 사실이 `setup-procedure.md`(에이전트용)에만 있고 **README(사람용)에는 없었다.** 그래서 실무자가
+자기 코드 프로젝트 폴더에서 `claude` 를 열고 "노션 설정해줘" 라고 하면, 그 프로젝트 안에 `raw/`·`wiki/`·`.env` 가
+생기는데 **아무도 경고하지 않는다.** 되돌리려면 손으로 지워야 하고, `.env` 가 남으면 남의 저장소에 토큰이 실릴 수 있다.
+
+**작업**
+- `README.md` — Quick Start 3단계 뒤에 `파일이 어디에 생기나 — 작업 폴더` 절 신설 (폴더 그림 · 코드 프로젝트 경고 · `--root` 의 끈적임 · 확인 방법)
+- `plugins/notion-llm-wiki/README.md` — setup 절에 같은 내용 압축판
+- `scripts/setup.js` — `describeRootRisks()` + `warnAboutRoot()`. **설정이 아직 없을 때만** 띄운다(이미 준비된 곳에는 잔소리하지 않는다).
+  위험 신호 3가지: 홈 디렉터리 · 플러그인 설치 폴더 안(갱신되면 사라진다) · 이미 다른 프로젝트(`package.json` 등 마커)
+- `--root` 를 명시했으면 "다른 스크립트에도 매번 붙여야 한다" 를 함께 알린다 — 한 번 알려 주고 끝날 일이 아니다
+- `references/setup-procedure.md`·`SKILL.md` — `⚠` 블록이 나오면 **사람에게 그대로 전하고 확인받은 뒤** 진행하도록
+- 테스트 T24 확장
+
+**추가로 고친 것**: README Quick Start 3단계가 아직도 "`.env` 는 커밋되지 않습니다" 라고 **확인 없이 단언**하고 있었다.
+같은 날 M3 에서 코드는 고쳤는데 사람용 문서에 옛 서술이 남아 있던 것이다 — git 저장소면 넣어 주고, 아니면 경고만 한다고 정정했다.
+
+**검증 (실행함)**: 시나리오 4가지를 실제로 돌려 확인했다.
+- 깨끗한 빈 폴더 → 위치와 만들어질 것만 알리고 위험 표시 없음
+- `package.json` 있는 폴더 → `⚠ 이미 다른 프로젝트로 보인다 (package.json 있음)`
+- 플러그인 폴더 안 → `⚠ 플러그인이 설치된 폴더 안이다 — 플러그인이 갱신되면 여기 쓴 것은 사라진다`
+- **이미 설정이 정상인 폴더 → 경고 없음** (잔소리하지 않는다)
+
+`npm test` **117/117**(T24 17건), `npm run lint` 오류 0, 색인 재생성 diff 0,
+`claude plugin validate --strict` 마켓플레이스·플러그인 둘 다 통과.
+
+---
+
+### `[fix]` P12 보안 검토가 잡은 결함 6건 — 토큰 파일 취급 · 상태: `완료`
+
+**경위**: P12 를 `완료` 로 적은 뒤 `security-reviewer` 로 **별도 검토 패스**를 돌렸다(같은 맥락에서 자기 승인하지 않는다는 원칙).
+검토기가 sandbox 에서 **실제로 재현**해 6건을 올렸다. 정상 경로의 토큰 비노출·`upsertEnvToken` 안전성·의존성 0개·커밋된 비밀값 없음은
+"문제없음" 으로 확인됐고, 아래는 전부 **내가 P12 에서 만든 결함**이다.
+
+| # | 결함 | 왜 위험한가 |
+|---|---|---|
+| H1 | `--token-file` 이 **조건 없는 임의 파일 삭제**였다 | `setToken` 의 `finally { fs.rmSync(src) }` 가 대상 검증 없이 무조건 돈다. `--token-file .env` 오타 한 번이면 `.env` 가 복구 불가로 사라지고 토큰을 재발급해야 한다 (gitignore 라 백업도 없다) |
+| M1 | 토큰 파일이 **모든 경로에서 지워지지 않았다** | 정리가 `setToken` **안**에서만 일어난다. `parseArgs` 가 먼저 throw 하거나(인자 오타) 선행 액션이 실패하면 평문 토큰 파일이 디스크에 남는다 |
+| M4 | 에러 메시지가 **인자 값을 그대로 출력**했다 | `모르는 인자: ${a}`. `--token <값>` 같은 흔한 오타에서 토큰이 세션 전사 파일(`*.jsonl`)·CI 로그에 평문으로 박힌다 — **DR1("출력에는 길이만") 정면 위반** |
+| M2 | 임시 토큰 파일 위치를 강제하지 않았고 `.gitignore` 가 못 덮었다 | 절차서가 "(프로젝트 밖)" 이라고 괄호 권고만 했다. `.gitignore` 는 `token.txt` 를 안 덮는데 **신규 테스트가 바로 그 이름을 써서** 나쁜 선례가 됐다. M1 과 겹치면 평문 토큰이 저장소에 남아 커밋된다 |
+| M3 | `--init-env` 가 확인도 없이 "이 파일은 커밋되지 않는다" 고 단언했다 | DR1 의 "`.env` 는 gitignore" 는 **이 저장소의 성질**이지 임의 `--root` 의 성질이 아니다. 절차서 1번이 "다른 폴더" 를 정식 선택지로 제시하는데, 그 폴더엔 `.gitignore` 가 없을 수 있다 |
+| L1·L2 | `.env` 가 0644 로 생성 · `upsertEnvToken` 이 `export ` 접두사를 버림 | 다중 사용자 호스트·CI 러너에서 같은 머신의 다른 계정이 읽는다 / `.env` 를 `source` 하는 운영자의 변수가 export 되지 않는다 |
+
+**고친 방식** — 핵심은 **파괴적 동작 앞에 화이트리스트를 두는 것**이다.
+`shredTokenFile()` 하나로 삭제 경로를 모으고, 그 함수가 스스로 `.tmp`/`.token` 확장자 · 일반 파일 · 512바이트 이하를
+확인한 뒤에만 지운다. 화이트리스트 밖이면 **조용히 아무것도 하지 않는다.** 같은 함수를 `main` 의 `finally` 와
+파싱 실패 경로에서도 불러 M1 을 덮는다 — 한 곳만 안전하면 모든 곳이 안전해진다.
+
+**변경 파일**
+- `scripts/setup.js` — `shredTokenFile()`(화이트리스트 후 삭제) · `shredTokenFileFromArgv()` · `safe()`/`safePath()`(출력 위생) ·
+  `ensureEnvIgnored()`(확인한 사실만 말한다) · `writeSecretFile()`(0600) · `upsertEnvToken` 이 `export ` 보존 ·
+  `main` 이 `finally` 로 토큰 파일을 정리
+- `references/setup-procedure.md` — 4-B 에 임시 파일 **위치·확장자 규칙**과 **토큰 교체(rotation) 안내** 추가
+- `SKILL.md` — setup 절 4번에 확장자 제약 명시
+- `.gitignore` — `*.token` · `token*.txt` · `notion-token*` 추가 (`*.tmp` 는 기존 "임시" 절에 이미 있다)
+- `.claude/settings.json` — `permissions.deny` 에 `Read(./.env)`·`Read(**/.env)`.
+  절대 규칙 5 는 지시문일 뿐이라 도구 레벨 방어선을 하나 둔다. 스크립트(node)는 영향받지 않는다
+- `test/setup.test.js` — 토큰 파일 이름을 `.tmp` 로 (옛 `token.txt` 는 나쁜 선례였다), 결함별 회귀 테스트 5건 추가 (T24 15건)
+
+**받아들이지 않은 제안 1건**: 검토기가 부수적으로 `allowed-tools` 를 `…/setup.js --status*` 로 좁히자고 했다.
+**채택하지 않는다** — 그 규칙은 접두 매칭이라 좁히면 `sync`·`ingest`·`lint`·`publish` 의 사전 승인이 전부 깨지고,
+P10 실측대로 비대화형 실행에서 거부된다. H1 은 **스크립트 자신의 화이트리스트**로 이미 막혔으므로,
+권한 범위를 줄여 얻는 것이 거의 없고 잃는 것이 크다.
+
+**검증 (실행함)** — 검토기의 재현 절차를 **그대로 다시 돌려** 4건 모두 막힌 것을 확인했다:
+- `--token-file <…>/important.txt` → `중단: .tmp 또는 .token 으로 끝나는 파일만 받는다` · 파일 **살아 있음**
+- `--token-file <…>/.env` (가장 아픈 오타) → 같은 거부 · `.env` **살아 있음**
+- `--token-file tok3.tmp --jsonn` (파싱 실패) → `중단: 모르는 인자: --jsonn` · 토큰 파일 **지워짐**
+- `--set-token ntn_SUPERSECRET…` → `중단: 모르는 인자: <30자 값 — 비밀일 수 있어 표시하지 않는다>` · **값 미노출**
+
+정상 왕복도 재확인: 토큰 노출 0건 · 임시 파일 삭제됨 · `.env` 기록 1건.
+`npm test` **115/115**(T24 15건), `npm run lint` 오류 0, 색인 재생성 diff 0, `plugin validate --strict` 둘 다 통과.
+
+---
+
+### `[feat]` P12 온보딩 `setup` 서브커맨드 — 작업 위치·sync 대상·토큰을 묻는 진입점 · 상태: `완료`
+
+**요청**: "여기 plugin setup에 notion key 넣는 거 있어야 하지 않나?" → "setup 추가하고, 어디 위치에 .env 와 notion sync할지
+물어보는 작업을 넣어줘. 그리고 .env에 토큰 넣는 작업도 물어보고" (2026-09-13)
+
+**확인한 구멍 4개**
+1. 설치본에 `.env.example` 도 `notion-wiki.config.json` 템플릿도 실리지 않는다 — 상위 저장소 루트에만 있다.
+   설치한 사람은 GitHub 를 열어 손으로 옮겨 적어야 한다.
+2. `setup`/`init` 진입점이 없다. "설정해줘" 를 받을 서브커맨드가 두 스킬 어디에도 없다.
+3. `SKILL.md` 의 `sync` 4번이 안내하는 `.env.example` 이 **설치본에 없다** — 죽은 안내.
+4. `check-notion.js` 가 `sync` 절 본문에만 묻혀 있어 서브커맨드로 노출되지 않았다.
+
+**1차 사고 → 비판적 재사고 (그라운드 룰 1)**
+
+1차 결론은 "`plugin.json` 의 `userConfig` 를 쓰면 된다" 였다. 공식 문서에 실재하는 기능이고, `sensitive: true` 로
+마스킹 입력 + Keychain 저장까지 해 준다. **그런데 이 결론은 반증됐다.**
+[plugins-reference](https://code.claude.com/docs/en/plugins-reference.md) 가 값의 도달 범위를 못박는다 —
+"All values are exported to **hook processes** as `CLAUDE_PLUGIN_OPTION_<KEY>` environment variables",
+그리고 "Fields that run in a shell **reject** `${user_config.*}`"(셸 인젝션 방지). sensitive 값은 스킬 본문 치환에서도 빠진다.
+이 스킬의 스크립트는 **일반 Bash 툴 호출**(`node ${CLAUDE_SKILL_DIR}/scripts/…`)로 돌므로 `userConfig` 값이 `sync.js` 까지
+**도달하지 못한다.** SessionStart 훅으로 평문 파일에 브리지하는 우회는 가능하지만, DR1(토큰은 `.env` 하나로만)을 깨면서
+얻는 것이 "설치 시 입력칸" 하나뿐이라 **채택하지 않았다.**
+
+**종합**: 진짜 구멍은 "키를 넣을 칸" 이 아니라 **템플릿과 진입점의 부재**다. `.env` 단일 출처(DR1)를 그대로 두고,
+그 파일을 만들어 주는 `setup` 서브커맨드 + 설치본에 실리는 `templates/` 로 메운다.
+
+**토큰 취급**: 사람이 채팅에 토큰을 붙여넣으면 그 값은 세션 transcript 에 평문으로 남고, Bash 명령 문자열에 넣으면
+권한 프롬프트·훅 로그에도 남는다 — DR1 위반이다. 그래서 `setup` 은 **넣는 방법을 사람에게 묻고**, 권장값은
+"사람이 직접 `.env` 에 붙여넣기"(Claude 는 빈 파일과 절대 경로만 준다)로 둔다. 대화로 받는 경로는 남기되 위 사실을 함께 알린다.
+받아서 쓸 때도 토큰을 **인자로 받지 않고** `--token-file` 로만 받아 기록 후 그 파일을 지운다.
+
+**변경 파일**
+- 신규 `plugins/notion-llm-wiki/templates/{notion-wiki.config.json,env.example}` — **설치본에 실리는** 초기 파일.
+  점파일이 패키징에서 누락될 위험을 피해 `env.example` 로 싣고 `setup` 이 `.env` 로 옮겨 쓴다.
+- 신규 `plugins/notion-llm-wiki/skills/notion-llm-wiki/scripts/setup.js` — `--status`/`--init-config`/`--init-env`/`--set-token`.
+  **사람에게 묻지 않는다**(비대화형 실행에 stdin 이 없다). `pageIdFromUrl`·`validate` 는 기존 lib 을 재사용했다.
+- 신규 `.../references/setup-procedure.md` — 무엇을 어떤 순서로 묻는지의 정본
+- 신규 `test/setup.test.js` (T24, 10건)
+- 수정 `.../SKILL.md` — 서브커맨드 표에 `setup`, 절 신설, `allowed-tools` 에 `AskUserQuestion` 추가(묻는 절차가 그 툴을 쓴다),
+  절대 규칙 5 에 임시 토큰 파일 조항, **`sync` 4번의 죽은 안내(`.env.example`)를 `setup` 으로 교체**
+- 수정 `test/skill.test.js` — T16 이 서브커맨드 6개·`setup-procedure.md`·`setup.js`·`check-notion.js` 를 강제하도록 확장
+- 수정 `README.md`(Quick Start 3단계)·`plugins/notion-llm-wiki/README.md`(손 설정 → `setup`, 수동 절차는 접어 둠)
+- 수정 `docs/PRD.md`(FR9 신설, DR1 에 `setup` 토큰 취급 명시)·`docs/TRD.md`(저장소 구조, 5.2 에 항목 4 추가)
+- 수정 버전 0.2.2 → **0.3.0** (`package.json`·`plugin.json`·`marketplace.json`), `npm run setup` 스크립트 추가
+
+**검증 (실행함)**: `npm test` **110/110**, `npm run lint` 오류 0(경고 4는 샘플 데이터 기존 것), 색인 재생성 diff 없음,
+`claude plugin validate --strict` 마켓플레이스·플러그인 둘 다 통과.
+**빈 디렉터리 왕복 실측** 통과 — 토큰 파일 삭제 확인, 출력·`--json`·상태 리포트에 토큰 값 **0건**.
+**설치본 실측** — `claude --plugin-dir` 헤드리스 세션이 스킬을 로드해 `setup` 을 포함한 표를 출력하고,
+`.env` 를 **"내용은 안 봄"** 으로 처리해 절대 규칙 5 를 지켰다. `git check-ignore` 로 `templates/` 가 무시되지 않음도 확인.
+
+**계획**: [PLAN P12](./PLAN.md#p12--온보딩-setup-서브커맨드).
+
+---
+
 ## 2026-09-10
 
 ### `[fix]` 실 Notion 워크스페이스 스모크 테스트 — 결함 3건 발견·수정 · 상태: `완료`

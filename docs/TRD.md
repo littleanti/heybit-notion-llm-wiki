@@ -176,16 +176,22 @@ heybit-notion-llm-wiki/
 │
 ├── plugins/notion-llm-wiki/           ★ 플러그인 루트 (설치 id `notion-llm-wiki@heybit-notion-llm-wiki`)
 │   ├── .claude-plugin/plugin.json     name · version(package.json 과 동일) · description · author · repository · license · keywords
-│   ├── README.md                      플러그인 단독 안내(설치·설정·서브커맨드)
+│   ├── README.md                      플러그인 단독 안내(설치·setup·서브커맨드)
+│   ├── templates/                     ★ 설치본에 실리는 초기 파일 — setup.js 가 여기서 복사한다
+│   │   ├── notion-wiki.config.json    서비스·위키 루트가 빈 템플릿 (카테고리·속성은 기본값)
+│   │   └── env.example                NOTION_TOKEN= (점 없는 이름 — 점파일은 패키징에서 누락될 수 있다)
 │   ├── skills/notion-llm-wiki/        ★ 위키 운영 스킬 — 옛 `.claude/skills/notion-llm-wiki/` 를 그대로 옮긴 것
-│       ├── SKILL.md                   진입점. $0 로 sync/ingest/query/lint/publish 분기. 스크립트는 `${CLAUDE_SKILL_DIR}/scripts/…`
+│       ├── SKILL.md                   진입점. $0 로 setup/sync/ingest/query/lint/publish 분기. 스크립트는 `${CLAUDE_SKILL_DIR}/scripts/…`
 │       ├── references/
+│       │   ├── setup-procedure.md     온보딩 절차 — 무엇을 어떤 순서로 묻는지 (작업 위치·동기화 대상·토큰)
 │       │   ├── wiki-schema.md         위키 규칙 (페이지 종류·상한·출처·모순·신선도) — ingest/query 가 먼저 읽는다
 │       │   ├── ingest-procedure.md    변경분 → 위키 갱신 절차
 │       │   ├── query-procedure.md     3층 검색 절차와 답변 형식
 │       │   ├── lint-semantic.md       의미 lint 체크리스트
 │       │   └── notion-authoring.md    실무자용 작성 규약 요약 (DESIGN 1·2절의 사본이 아니라 링크)
 │       └── scripts/
+│           ├── setup.js               작업 공간 준비 (--status/--init-config/--init-env/--set-token). 사람에게 묻지 않는다
+│           ├── check-notion.js        읽기 전용 연결·권한·속성 점검
 │           ├── sync.js                Notion → raw
 │           ├── build-index.js         raw+wiki → wiki/index.md
 │           ├── lint.js                구조 lint
@@ -279,8 +285,10 @@ gitignore 에 넣어도 되고 커밋해도 된다 — 커밋하면 팀원 간 �
 1. 서비스 `slug` 와 카테고리 `slug` 는 `^[a-z0-9-]+$`, 중복 없음. `fallback` 카테고리 정확히 1개.
 2. **위키 루트가 어느 서비스 루트의 하위이면 거부** — 위키가 자기 출력을 다시 먹는 순환.
    (fixture 로 재현: 위키 루트를 서비스 아래에 둔 설정 → 기동 실패, A12 계열)
-3. `NOTION_TOKEN` 은 `sync`/`publish --apply`/`register-legacy` 에만 필요. 없으면 그 명령만 거부하고
-   이유를 출력한다. `build-index`/`lint`/`publish`(dry-run) 은 토큰 없이 돈다.
+3. `NOTION_TOKEN` 은 `sync`/`publish --apply`/`register-legacy`/`check-notion`/`draft-pull`/`draft-submit` 에만
+   필요. 없으면 그 명령만 거부하고 이유를 출력한다. `build-index`/`lint`/`publish`(dry-run)/`setup` 은 토큰 없이 돈다.
+4. `setup.js` 는 설정이 **없는 상태에서도 돌아야 한다** — `loadConfig` 를 쓰지 않고 직접 읽어 `validate` 만 돌리고,
+   실패를 상태 리포트의 한 줄로 바꾼다. 만들기 전(`--init-config`)에도 `validate` 를 먼저 통과시켜 **깨진 설정을 남기지 않는다.**
 
 ## 6. 모듈 계약
 

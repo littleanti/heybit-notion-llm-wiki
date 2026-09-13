@@ -1,0 +1,52 @@
+{
+  "notionVersion": "2026-03-11",
+  "services": [],
+  "categories": [
+    { "name": "상품기획", "slug": "product-planning" },
+    { "name": "상품설명", "slug": "product-description" },
+    { "name": "상품개발", "slug": "product-dev" },
+    { "name": "CS", "slug": "cs" },
+    { "name": "법무", "slug": "legal" },
+    { "name": "마케팅", "slug": "marketing" },
+    { "name": "기타", "slug": "misc", "fallback": true }
+  ],
+  "wiki": {
+    "rootPageId": "",
+    "indexTitle": "색인",
+    "logTitle": "변경 이력"
+  },
+  "properties": {
+    "title": "제목",
+    "service": "서비스",
+    "category": "카테고리",
+    "docType": "문서유형",
+    "status": "상태",
+    "authorType": "작성주체",
+    "owner": "담당자",
+    "summary": "요약",
+    "keywords": "키워드",
+    "tags": "태그",
+    "reviewBy": "검토기한",
+    "verifiedAt": "최종확인일",
+    "sensitivity": "비밀등급",
+    "exclude": "위키제외",
+    "source": "원본",
+    "related": "관련 페이지"
+  },
+  "values": {
+    "docType": ["기획서", "정책·규정", "가이드·매뉴얼", "FAQ·응대", "회의록", "결정기록", "분석·리포트", "체크리스트", "기타"],
+    "status": ["초안", "검토중", "확정", "폐기"],
+    "authorType": ["사람", "AI", "사람+AI"],
+    "sensitivity": ["공개", "내부", "민감"]
+  },
+  "sync": {
+    "sensitiveValues": ["민감"],
+    "excludeWhenUnset": false,
+    "rps": 3
+  },
+  "paths": {
+    "raw": "raw",
+    "wiki": "wiki",
+    "drafts": "drafts"
+  }
+}
