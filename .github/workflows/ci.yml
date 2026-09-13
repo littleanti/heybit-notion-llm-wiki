@@ -15,10 +15,13 @@ jobs:
       matrix:
         node: ['22', '24']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
+          # 이 저장소는 의존성 0개 · 락파일 없음이 원칙이다 (아래 스텝이 강제한다).
+          # setup-node 의 자동 캐싱 기본값은 v5·v6 에서 두 번 바뀌었으므로 명시적으로 끈다.
+          package-manager-cache: false
       - name: Node 버전 · 의존성 0개 확인
         run: |
           node --version
@@ -37,10 +40,11 @@ jobs:
     name: plugin manifest (claude plugin validate --strict)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
+          package-manager-cache: false
       - name: Claude Code CLI 설치 (러너 전역 — 저장소 의존성은 여전히 0)
         run: npm install -g @anthropic-ai/claude-code && claude --version
       - name: 플러그인 매니페스트·스킬 검증

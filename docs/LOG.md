@@ -12,6 +12,27 @@
 
 ## 2026-09-13
 
+### `[chore]` CI 액션을 v7 로 올림 — Node 20 런타임 폐기 경고 해소 · 상태: `완료`
+
+**계기**: P12 푸시(`ba42d68`)의 CI 가 통과하면서 경고를 남겼다 —
+`Node.js 20 is deprecated. actions/checkout@v4, actions/setup-node@v4 are being forced to run on Node.js 24`.
+지금은 강제 실행으로 넘어가지만 폐기되면 CI 가 깨진다.
+
+**확인한 것** (v4 → v7 은 메이저 3칸이라 breaking change 를 먼저 읽었다)
+- `actions/checkout`: v5 가 런타임을 Node 24 로 올린 판(경고의 원인이 여기서 해소된다), v6 은 자격증명 분리, v7 은
+  `pull_request_target`·`workflow_run` 에서 fork PR 체크아웃 차단 + ESM 전환. **이 저장소는 `push`·`pull_request` 만 쓰므로 무관.**
+- `actions/setup-node`: **v5 에 breaking change** — `package.json` 의 `packageManager`(또는 `devEngines.packageManager`)가
+  npm 이면 자동 캐싱이 켜진다. v6 은 그 범위를 npm 으로 좁혔다.
+  이 저장소에는 **그 필드도 락파일도 없어서** 트리거되지 않는 것을 확인했다.
+  다만 이 기본값이 v5·v6 에서 두 번 바뀌었고, 캐싱이 켜지면 "의존성 0개 · 락파일 없음" 원칙(CI 가 `test ! -f package-lock.json`
+  으로 강제한다)과 충돌하므로 **`package-manager-cache: false` 를 명시**해 미래의 기본값 변경에 묶이지 않게 했다.
+
+**변경 파일**: `.github/workflows/ci.yml` — `checkout@v4`→`@v7`(2곳), `setup-node@v4`→`@v7`(2곳) + `package-manager-cache: false`
+
+**검증**: 워크플로 변경이라 로컬 테스트로는 확인되지 않는다. **푸시 후 Actions 실행 결과가 검증이다** — 아래 결과 참조.
+
+---
+
 ### `[feat]` 작업 위치를 README 에 명시하고 `setup` 이 파일 만들기 전에 경고 · 상태: `완료`
 
 **요청**: "이런 설정법 내용 README에 넣고 setup할때도 경고로 띄워주게 해줘." (2026-09-13)
